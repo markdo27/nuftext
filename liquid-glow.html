@@ -1,0 +1,768 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>LIQUID/GLOW — SVG Filter Typography</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Black&family=Bebas+Neue&family=Inter:wght@900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0a0b; --panel:#101012; --panel2:#161619; --line:#26262b;
+  --ink:#e8e8ea; --dim:#7a7a83; --accent:#ff5a12; --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--bg); color:var(--ink); overflow:hidden;
+  font:400 13px/1.45 var(--mono); -webkit-font-smoothing:antialiased;
+  display:grid; grid-template-columns:340px 1fr;
+}
+#panel{
+  background:var(--panel); border-right:1px solid var(--line);
+  overflow-y:auto; overflow-x:hidden; scrollbar-width:thin; scrollbar-color:var(--line) transparent;
+}
+#panel::-webkit-scrollbar{width:8px}
+#panel::-webkit-scrollbar-thumb{background:var(--line)}
+.brand{
+  padding:14px 16px 13px; border-bottom:1px solid var(--line); position:sticky; top:0;
+  background:var(--panel); z-index:5; display:flex; align-items:center; justify-content:space-between; gap:8px;
+}
+.brand h1{font-size:15px;letter-spacing:.16em;font-weight:700}
+.brand h1 span{color:var(--accent)}
+.brand p{color:var(--dim);font-size:10.5px;letter-spacing:.09em;margin-top:4px}
+#resetBtn{width:auto;padding:7px 10px;font-size:10.5px;flex:none}
+
+section{border-bottom:1px solid var(--line)}
+section>h2{
+  font-size:11px; letter-spacing:.15em; color:var(--dim); font-weight:700;
+  padding:11px 16px; cursor:pointer; display:flex; justify-content:space-between;
+  align-items:center; user-select:none; text-transform:uppercase; gap:8px;
+}
+section>h2:hover{color:var(--ink)}
+section>h2 .chev{color:var(--dim);font-size:13px}
+section.closed .body{display:none}
+.body{padding:2px 16px 15px}
+
+.row{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+.row label{flex:1;color:var(--dim);font-size:11.3px;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .val{width:52px;text-align:right;font-size:11px;color:var(--ink);font-variant-numeric:tabular-nums}
+
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:2px;background:var(--line);outline:none;cursor:ew-resize;margin:9px 0 3px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;background:var(--ink);border-radius:50%;cursor:ew-resize;transition:background .12s}
+input[type=range]:hover::-webkit-slider-thumb{background:var(--accent)}
+input[type=range]::-moz-range-thumb{width:11px;height:11px;background:var(--ink);border:0;border-radius:50%;cursor:ew-resize}
+input[type=range]:disabled{opacity:.3}
+
+input[type=color]{-webkit-appearance:none;appearance:none;width:32px;height:20px;padding:0;border:1px solid var(--line);background:none;cursor:pointer}
+input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+input[type=color]::-webkit-color-swatch{border:none}
+
+input[type=text],select,textarea{
+  width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--ink);
+  font:400 12.5px var(--mono);padding:8px 9px;outline:none;
+}
+textarea{resize:vertical;min-height:56px;font-family:var(--mono)}
+input[type=text]:focus,select:focus,textarea:focus{border-color:var(--accent)}
+.fld{margin-bottom:11px}
+.fld span{display:block;color:var(--dim);font-size:10.3px;letter-spacing:.12em;margin-bottom:5px;text-transform:uppercase}
+
+button{
+  background:var(--panel2);border:1px solid var(--line);color:var(--ink);
+  font:600 10.5px var(--mono);letter-spacing:.09em;padding:9px;cursor:pointer;
+  text-transform:uppercase;transition:.12s;width:100%;
+}
+button:hover{background:var(--accent);border-color:var(--accent);color:#000}
+button:active{transform:translateY(1px)}
+button:disabled{opacity:.35;cursor:default;background:var(--panel2);color:var(--ink);border-color:var(--line)}
+button.hot{background:var(--accent);border-color:var(--accent);color:#000;font-weight:700}
+button.hot:hover{filter:brightness(1.18)}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:2px;margin-bottom:9px}
+.btns.three{grid-template-columns:1fr 1fr 1fr}
+
+.toggle{display:flex;align-items:center;gap:8px;margin-bottom:9px;cursor:pointer;user-select:none}
+.toggle input{appearance:none;-webkit-appearance:none;width:26px;height:14px;background:var(--line);position:relative;cursor:pointer;flex:none;transition:.15s}
+.toggle input::after{content:"";position:absolute;top:2px;left:2px;width:10px;height:10px;background:var(--dim);transition:.15s}
+.toggle input:checked{background:var(--accent)}
+.toggle input:checked::after{left:14px;background:#000}
+.toggle span{color:var(--dim);font-size:11.3px;letter-spacing:.03em}
+.toggle.big span{color:var(--ink);font-weight:700;letter-spacing:.06em;font-size:11.5px}
+
+.pal{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:11px}
+.sw{height:26px;border:1px solid var(--line);cursor:pointer}
+.sw:hover{border-color:var(--ink)}
+
+#status{color:var(--dim);font-size:10.5px;letter-spacing:.04em;margin-top:8px;min-height:14px}
+#status.active{color:var(--accent)}
+
+#stage{
+  position:relative; display:grid; place-items:center; padding:26px; min-width:0; min-height:0;
+  background:radial-gradient(120% 90% at 50% 0%, #131316 0%, #0a0a0b 60%),
+    repeating-linear-gradient(45deg,#0c0c0e 0 2px,transparent 2px 8px);
+}
+#stageInner{position:relative; max-width:100%; max-height:100%; display:flex}
+svg#art{display:block; max-width:100%; max-height:100%; box-shadow:0 40px 90px -20px #000, 0 0 0 1px #000, 0 0 70px -30px var(--accent)}
+#hud{position:absolute; left:14px; bottom:10px; color:var(--dim); font-size:10px; letter-spacing:.13em; text-transform:uppercase; pointer-events:none; user-select:none; z-index:2}
+#hud b{color:var(--accent);font-weight:400}
+
+@media (max-width:880px){
+  body{grid-template-columns:1fr;grid-template-rows:1fr 46vh}
+  #panel{border-right:0;border-top:1px solid var(--line)}
+  #stage{padding:14px}
+}
+</style>
+</head>
+<body>
+
+<div id="panel">
+  <div class="brand">
+    <div><h1>LIQUID<span>/GLOW</span></h1><p>SVG FILTER TYPOGRAPHY</p></div>
+    <button id="resetBtn" type="button">↺ Reset</button>
+  </div>
+
+  <section>
+    <h2>Content<span class="chev">−</span></h2>
+    <div class="body">
+      <div class="fld"><span>Text</span><textarea id="text" spellcheck="false"></textarea></div>
+      <div class="fld"><span>Font</span>
+        <select id="font">
+          <option value="Anton">Anton</option>
+          <option value="Archivo Black">Archivo Black</option>
+          <option value="Bebas Neue">Bebas Neue</option>
+          <option value="Inter Black">Inter Black</option>
+        </select>
+      </div>
+      <div class="toggle"><input id="uppercase" type="checkbox" checked><span>Force uppercase</span></div>
+      <div class="row"><label>Size</label><span class="val" id="v_fontScale">100%</span></div>
+      <input id="fontScale" type="range" min="0.5" max="1.5" step="0.01">
+      <div class="row"><label>Tracking</label><span class="val" id="v_tracking">0</span></div>
+      <input id="tracking" type="range" min="-0.06" max="0.30" step="0.005">
+      <div class="row"><label>Line height</label><span class="val" id="v_leading">1.05</span></div>
+      <input id="leading" type="range" min="0.75" max="1.4" step="0.01">
+      <div class="row"><label>Ink color</label><input id="ink" type="color"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Melt<span class="chev">−</span></h2>
+    <div class="body">
+      <div class="toggle big"><input id="meltOn" type="checkbox" checked><span>Melt / gooey fuse</span></div>
+      <div class="row"><label>Melt intensity</label><span class="val" id="v_meltIntensity">.45</span></div>
+      <input id="meltIntensity" type="range" min="0" max="1" step="0.01">
+    </div>
+  </section>
+
+  <section>
+    <h2>Distort<span class="chev">−</span></h2>
+    <div class="body">
+      <div class="toggle big"><input id="distortOn" type="checkbox" checked><span>Turbulent distortion</span></div>
+      <div class="row"><label>Distortion amount</label><span class="val" id="v_distortScale">28</span></div>
+      <input id="distortScale" type="range" min="0" max="60" step="1">
+      <div class="row"><label>Turbulence freq</label><span class="val" id="v_turbFreq">.018</span></div>
+      <input id="turbFreq" type="range" min="0.004" max="0.05" step="0.001">
+      <div class="toggle"><input id="animate" type="checkbox" checked><span>Animate (shimmer)</span></div>
+      <div class="row"><label>Speed</label><span class="val" id="v_animSpeed">.8</span></div>
+      <input id="animSpeed" type="range" min="0" max="2.5" step="0.02">
+      <button id="rerollBtn" type="button">⟳ Reroll seed</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Glow<span class="chev">−</span></h2>
+    <div class="body">
+      <div class="toggle big"><input id="glowOn" type="checkbox" checked><span>Glow</span></div>
+      <div class="pal">
+        <div class="sw" style="background:#ff5a00" data-color="#ff5a00"></div>
+        <div class="sw" style="background:#ff1f8f" data-color="#ff1f8f"></div>
+        <div class="sw" style="background:#ff2b2b" data-color="#ff2b2b"></div>
+        <div class="sw" style="background:#12c9ff" data-color="#12c9ff"></div>
+      </div>
+      <div class="row"><label>Glow color</label><input id="glowColor" type="color"></div>
+      <div class="row"><label>Glow radius</label><span class="val" id="v_glowRadius">26</span></div>
+      <input id="glowRadius" type="range" min="2" max="60" step="1">
+      <div class="row"><label>Glow intensity</label><span class="val" id="v_glowIntensity">1.4</span></div>
+      <input id="glowIntensity" type="range" min="0.3" max="3" step="0.05">
+      <div class="toggle"><input id="mottleOn" type="checkbox" checked><span>Mottled bloom</span></div>
+      <div class="row"><label>Mottle amount</label><span class="val" id="v_mottleAmount">18</span></div>
+      <input id="mottleAmount" type="range" min="0" max="40" step="1">
+    </div>
+  </section>
+
+  <section>
+    <h2>Canvas &amp; Export<span class="chev">−</span></h2>
+    <div class="body">
+      <div class="row"><label>Background</label><input id="background" type="color"></div>
+      <div class="fld"><span>Aspect</span>
+        <select id="aspect">
+          <option value="0.8">4 : 5 (portrait)</option>
+          <option value="0.75">3 : 4</option>
+          <option value="1">1 : 1</option>
+          <option value="0.5625">9 : 16</option>
+          <option value="1.778">16 : 9</option>
+        </select>
+      </div>
+      <div class="fld"><span>PNG export height (px)</span>
+        <select id="exportHeight">
+          <option value="1200">1200</option>
+          <option value="2000" selected>2000</option>
+          <option value="3000">3000</option>
+        </select>
+      </div>
+      <div class="fld"><span>WebM duration</span>
+        <select id="webmDuration">
+          <option value="2">2s</option>
+          <option value="3" selected>3s</option>
+          <option value="5">5s</option>
+        </select>
+      </div>
+      <div class="btns three">
+        <button id="exportSvgBtn" type="button">SVG</button>
+        <button id="exportPngBtn" type="button">PNG</button>
+        <button id="exportWebmBtn" type="button" class="hot">WebM</button>
+      </div>
+      <div id="status"></div>
+    </div>
+  </section>
+</div>
+
+<div id="stage">
+  <div id="stageInner">
+    <svg id="art" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" width="800" height="1000">
+      <defs>
+        <filter id="liquidFilter" x="-80%" y="-80%" width="260%" height="260%" color-interpolation-filters="sRGB"></filter>
+      </defs>
+      <rect id="bgRect" x="0" y="0" width="800" height="1000" fill="#0a0a0c"></rect>
+      <text id="mainText" x="50%" text-anchor="middle" fill="#000000" font-weight="900" filter="url(#liquidFilter)"></text>
+    </svg>
+  </div>
+  <div id="hud"><b>●</b> <span id="hudTxt">—</span></div>
+</div>
+
+<script>
+"use strict";
+/* ════════════════════════════════════════════════════════════════════════
+   LIQUID/GLOW — SVG filter chain typography.
+   Pipeline (all vector, one <filter> applied to the text element):
+     SourceAlpha -> [MELT: feGaussianBlur -> feColorMatrix alpha-contrast]
+                 -> [DISTORT: feTurbulence -> feDisplacementMap]
+                 -> [GLOW: feFlood+feComposite colorize -> optional mottle
+                    turbulence/displacement -> feGaussianBlur -> intensity]
+                 -> feMerge(glow, SourceGraphic)   // crisp text on top
+   Each stage is toggle-able; toggling rebuilds the filter's primitive
+   graph. Continuous params (colors, radii, scale) just update attributes
+   on cached node references — no rebuild needed. Animation drives
+   feTurbulence baseFrequency/seed and feDisplacementMap scale every
+   rAF tick.
+   ════════════════════════════════════════════════════════════════════════ */
+
+const SVGNS = 'http://www.w3.org/2000/svg';
+
+const FONT_DEFS = {
+  'Anton':        { family: 'Anton',        weight: '400' },
+  'Archivo Black':{ family: 'Archivo Black', weight: '400' },
+  'Bebas Neue':   { family: 'Bebas Neue',    weight: '400' },
+  'Inter Black':  { family: 'Inter',         weight: '900' }
+};
+
+const P = {
+  text: "LIQUID\nGLOW",
+  uppercase: true,
+  font: 'Anton',
+  fontScale: 1.0,
+  tracking: 0.0,
+  leading: 1.05,
+  ink: '#000000',
+
+  meltOn: true, meltIntensity: 0.45,
+  distortOn: true, distortScale: 28, turbFreq: 0.018,
+  animate: true, animSpeed: 0.8,
+  glowOn: true, glowColor: '#ff5a00', glowRadius: 26, glowIntensity: 1.4,
+  mottleOn: true, mottleAmount: 18,
+
+  background: '#0a0a0c',
+  aspect: 0.8,
+  exportHeight: 2000,
+  webmDuration: 3,
+  seed: Math.floor(Math.random() * 1000)
+};
+const DEFAULTS = JSON.parse(JSON.stringify(P));
+
+const svg = document.getElementById('art');
+const filterEl = document.getElementById('liquidFilter');
+const bgRect = document.getElementById('bgRect');
+const textEl = document.getElementById('mainText');
+const hudTxt = document.getElementById('hudTxt');
+const statusEl = document.getElementById('status');
+
+const VB_H = 1000;
+let vbW = VB_H * P.aspect;
+
+let nodes = {};
+
+/* ── filter graph construction ──────────────────────────────────────── */
+function el(parent, tag, attrs){
+  const e = document.createElementNS(SVGNS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  parent.appendChild(e);
+  return e;
+}
+
+function rebuildFilter(){
+  while (filterEl.firstChild) filterEl.removeChild(filterEl.firstChild);
+  nodes = {};
+
+  let meltIn = 'SourceAlpha';
+  if (P.meltOn){
+    nodes.meltBlur = el(filterEl, 'feGaussianBlur', { in: 'SourceAlpha', stdDeviation: '0.05', result: 'meltBlur' });
+    nodes.meltMatrix = el(filterEl, 'feColorMatrix', {
+      in: 'meltBlur', type: 'matrix',
+      values: '1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0',
+      result: 'melted'
+    });
+    meltIn = 'melted';
+  }
+
+  let distortIn = meltIn;
+  if (P.distortOn){
+    nodes.turb1 = el(filterEl, 'feTurbulence', {
+      type: 'fractalNoise', baseFrequency: '0.018 0.018', numOctaves: '2',
+      seed: String(P.seed), stitchTiles: 'stitch', result: 'noise1'
+    });
+    nodes.disp1 = el(filterEl, 'feDisplacementMap', {
+      in: meltIn, in2: 'noise1', scale: '0',
+      xChannelSelector: 'R', yChannelSelector: 'G', result: 'distorted'
+    });
+    distortIn = 'distorted';
+  }
+
+  let glowResult = null;
+  if (P.glowOn){
+    nodes.flood = el(filterEl, 'feFlood', { 'flood-color': P.glowColor, 'flood-opacity': '1', result: 'colorFlood' });
+    nodes.compose = el(filterEl, 'feComposite', { in: 'colorFlood', in2: distortIn, operator: 'in', result: 'glowColored' });
+
+    let glowSrc = 'glowColored';
+    if (P.mottleOn){
+      nodes.turb2 = el(filterEl, 'feTurbulence', {
+        type: 'fractalNoise', baseFrequency: '0.05 0.05', numOctaves: '2',
+        seed: String(P.seed + 17), stitchTiles: 'stitch', result: 'noise2'
+      });
+      nodes.disp2 = el(filterEl, 'feDisplacementMap', {
+        in: 'glowColored', in2: 'noise2', scale: '0',
+        xChannelSelector: 'R', yChannelSelector: 'G', result: 'glowMottled'
+      });
+      glowSrc = 'glowMottled';
+    }
+
+    nodes.glowBlur = el(filterEl, 'feGaussianBlur', { in: glowSrc, stdDeviation: '20', result: 'glowBlur' });
+    nodes.glowIntensity = el(filterEl, 'feColorMatrix', {
+      in: 'glowBlur', type: 'matrix',
+      values: '1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0',
+      result: 'glowFinal'
+    });
+    glowResult = 'glowFinal';
+  }
+
+  const merge = el(filterEl, 'feMerge', {});
+  if (glowResult){
+    const n1 = document.createElementNS(SVGNS, 'feMergeNode');
+    n1.setAttribute('in', glowResult);
+    merge.appendChild(n1);
+  }
+  const n2 = document.createElementNS(SVGNS, 'feMergeNode');
+  n2.setAttribute('in', 'SourceGraphic');
+  merge.appendChild(n2);
+}
+
+const lerp = (a, b, t) => a + (b - a) * t;
+
+function applyStatic(){
+  if (nodes.meltBlur){
+    nodes.meltBlur.setAttribute('stdDeviation', lerp(0.05, 20, P.meltIntensity).toFixed(3));
+    const slope = 1 + P.meltIntensity * 9;
+    const intercept = -(slope - 1) / 2;
+    nodes.meltMatrix.setAttribute('values', `1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 ${slope.toFixed(3)} ${intercept.toFixed(3)}`);
+  }
+  if (nodes.disp1) nodes.disp1.setAttribute('scale', P.distortScale);
+  if (nodes.turb1){
+    nodes.turb1.setAttribute('baseFrequency', `${P.turbFreq} ${P.turbFreq}`);
+    nodes.turb1.setAttribute('seed', P.seed);
+  }
+  if (nodes.disp2) nodes.disp2.setAttribute('scale', P.mottleAmount);
+  if (nodes.turb2){
+    const f2 = P.turbFreq * 2.6;
+    nodes.turb2.setAttribute('baseFrequency', `${f2} ${f2}`);
+    nodes.turb2.setAttribute('seed', P.seed + 17);
+  }
+  if (nodes.flood) nodes.flood.setAttribute('flood-color', P.glowColor);
+  if (nodes.glowBlur) nodes.glowBlur.setAttribute('stdDeviation', Math.max(0.5, P.glowRadius));
+  if (nodes.glowIntensity){
+    nodes.glowIntensity.setAttribute('values', `1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 ${P.glowIntensity} 0`);
+  }
+  bgRect.setAttribute('fill', P.background);
+  textEl.setAttribute('fill', P.ink);
+}
+
+/* ── text layout (multi-line, auto-fit via getComputedTextLength) ─────── */
+function layoutText(){
+  vbW = VB_H * P.aspect;
+  svg.setAttribute('viewBox', `0 0 ${vbW} ${VB_H}`);
+  svg.setAttribute('width', vbW);
+  svg.setAttribute('height', VB_H);
+  bgRect.setAttribute('width', vbW);
+  bgRect.setAttribute('height', VB_H);
+
+  const def = FONT_DEFS[P.font];
+  textEl.setAttribute('font-family', `"${def.family}", sans-serif`);
+  textEl.setAttribute('font-weight', def.weight);
+
+  let raw = (P.text.trim() || 'LIQUID GLOW');
+  if (P.uppercase) raw = raw.toUpperCase();
+  const lines = raw.split('\n');
+
+  while (textEl.firstChild) textEl.removeChild(textEl.firstChild);
+  const tspans = lines.map(line => {
+    const ts = document.createElementNS(SVGNS, 'tspan');
+    ts.setAttribute('x', '50%');
+    ts.textContent = line || ' ';
+    textEl.appendChild(ts);
+    return ts;
+  });
+
+  const marginX = vbW * 0.08, marginY = VB_H * 0.08;
+  const availW = vbW - marginX * 2;
+  const availH = (VB_H - marginY * 2) * P.fontScale;
+
+  let fontSize = VB_H * 0.24;
+  textEl.setAttribute('font-size', fontSize);
+  textEl.style.letterSpacing = (P.tracking * fontSize) + 'px';
+
+  const widths = tspans.map(ts => ts.getComputedTextLength() || 1);
+  const maxW = Math.max(...widths, 1);
+  const lineHeight = fontSize * P.leading;
+  const blockH = lines.length * lineHeight;
+  const scale = Math.min(availW / maxW, availH / blockH, 4.5);
+  fontSize *= scale;
+
+  textEl.setAttribute('font-size', fontSize.toFixed(2));
+  textEl.style.letterSpacing = (P.tracking * fontSize).toFixed(2) + 'px';
+
+  const newLineHeight = fontSize * P.leading;
+  const newBlockH = lines.length * newLineHeight;
+  const startY = (VB_H - newBlockH) / 2 + fontSize * 0.76;
+  tspans.forEach((ts, i) => ts.setAttribute('y', (startY + i * newLineHeight).toFixed(2)));
+}
+
+/* ── animation loop ─────────────────────────────────────────────────── */
+let t0 = performance.now();
+function tick(now){
+  const t = (now - t0) / 1000;
+  if (P.animate){
+    const sp = P.animSpeed;
+    if (nodes.turb1){
+      const fx = P.turbFreq * (1 + 0.22 * Math.sin(t * sp * 0.6));
+      const fy = P.turbFreq * (1 + 0.22 * Math.sin(t * sp * 0.6 + 1.7));
+      nodes.turb1.setAttribute('baseFrequency', `${fx.toFixed(4)} ${fy.toFixed(4)}`);
+      nodes.turb1.setAttribute('seed', P.seed + Math.floor(t * sp * 0.35));
+    }
+    if (nodes.disp1){
+      const sc = Math.max(0, P.distortScale * (1 + 0.18 * Math.sin(t * sp * 0.9 + 0.5)));
+      nodes.disp1.setAttribute('scale', sc.toFixed(2));
+    }
+    if (nodes.turb2){
+      const f2 = P.turbFreq * 2.6 * (1 + 0.25 * Math.sin(t * sp * 0.8 + 2.1));
+      nodes.turb2.setAttribute('baseFrequency', `${f2.toFixed(4)} ${f2.toFixed(4)}`);
+      nodes.turb2.setAttribute('seed', P.seed + 17 + Math.floor(t * sp * 0.3));
+    }
+    if (nodes.disp2){
+      const sc2 = Math.max(0, P.mottleAmount * (1 + 0.2 * Math.sin(t * sp * 1.1 + 1.0)));
+      nodes.disp2.setAttribute('scale', sc2.toFixed(2));
+    }
+  }
+  requestAnimationFrame(tick);
+}
+
+setInterval(() => { hudTxt.textContent = `${Math.round(vbW)}×${VB_H} — ${P.animate ? 'live' : 'still'}`; }, 400);
+
+/* ── UI wiring ───────────────────────────────────────────────────────── */
+function setStatus(msg, active){
+  statusEl.textContent = msg || '';
+  statusEl.classList.toggle('active', !!active);
+}
+
+const sliderSpecs = {
+  fontScale: 'pct', tracking: 3, leading: 2,
+  meltIntensity: 2, distortScale: 0, turbFreq: 3, animSpeed: 2,
+  glowRadius: 0, glowIntensity: 2, mottleAmount: 0
+};
+function fmtVal(id, v){
+  const spec = sliderSpecs[id];
+  document.getElementById('v_' + id).textContent =
+    spec === 'pct' ? Math.round(v * 100) + '%' :
+    spec === 0 ? Math.round(v) : v.toFixed(spec);
+}
+
+const TOPOLOGY_KEYS = new Set(['meltOn', 'distortOn', 'glowOn', 'mottleOn']);
+const LAYOUT_KEYS = new Set(['fontScale', 'tracking', 'leading', 'uppercase', 'font', 'aspect']);
+
+function bindSlider(id){
+  const elx = document.getElementById(id);
+  elx.value = P[id];
+  fmtVal(id, P[id]);
+  elx.addEventListener('input', () => {
+    P[id] = parseFloat(elx.value);
+    fmtVal(id, P[id]);
+    if (LAYOUT_KEYS.has(id)) layoutText();
+    applyStatic();
+  });
+}
+Object.keys(sliderSpecs).forEach(bindSlider);
+
+function bindColor(id){
+  const elx = document.getElementById(id);
+  elx.value = P[id];
+  elx.addEventListener('input', () => { P[id] = elx.value; applyStatic(); });
+}
+['ink', 'glowColor', 'background'].forEach(bindColor);
+
+function bindToggle(id){
+  const elx = document.getElementById(id);
+  elx.checked = P[id];
+  elx.addEventListener('change', () => {
+    P[id] = elx.checked;
+    if (TOPOLOGY_KEYS.has(id)){ rebuildFilter(); applyStatic(); }
+  });
+}
+['meltOn', 'distortOn', 'glowOn', 'mottleOn'].forEach(bindToggle);
+
+const uppercaseEl = document.getElementById('uppercase');
+uppercaseEl.checked = P.uppercase;
+uppercaseEl.addEventListener('change', () => { P.uppercase = uppercaseEl.checked; layoutText(); });
+
+const animateEl = document.getElementById('animate');
+animateEl.checked = P.animate;
+animateEl.addEventListener('change', () => { P.animate = animateEl.checked; });
+
+const textEl2 = document.getElementById('text');
+textEl2.value = P.text;
+textEl2.addEventListener('input', () => { P.text = textEl2.value; layoutText(); });
+
+const fontEl = document.getElementById('font');
+fontEl.value = P.font;
+fontEl.addEventListener('change', () => { P.font = fontEl.value; layoutText(); });
+
+const aspectEl = document.getElementById('aspect');
+aspectEl.value = P.aspect;
+aspectEl.addEventListener('change', () => { P.aspect = parseFloat(aspectEl.value); layoutText(); });
+
+const exportHeightEl = document.getElementById('exportHeight');
+exportHeightEl.value = P.exportHeight;
+exportHeightEl.addEventListener('change', () => { P.exportHeight = parseInt(exportHeightEl.value, 10); });
+
+const webmDurationEl = document.getElementById('webmDuration');
+webmDurationEl.value = P.webmDuration;
+webmDurationEl.addEventListener('change', () => { P.webmDuration = parseFloat(webmDurationEl.value); });
+
+document.getElementById('rerollBtn').addEventListener('click', () => {
+  P.seed = Math.floor(Math.random() * 1000);
+  rebuildFilter();
+  applyStatic();
+});
+
+document.querySelectorAll('.pal .sw').forEach(sw => {
+  sw.addEventListener('click', () => {
+    P.glowColor = sw.dataset.color;
+    document.getElementById('glowColor').value = P.glowColor;
+    applyStatic();
+  });
+});
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  Object.assign(P, JSON.parse(JSON.stringify(DEFAULTS)));
+  P.seed = Math.floor(Math.random() * 1000);
+  textEl2.value = P.text;
+  uppercaseEl.checked = P.uppercase;
+  fontEl.value = P.font;
+  animateEl.checked = P.animate;
+  aspectEl.value = P.aspect;
+  exportHeightEl.value = P.exportHeight;
+  webmDurationEl.value = P.webmDuration;
+  ['meltOn', 'distortOn', 'glowOn', 'mottleOn'].forEach(id => { document.getElementById(id).checked = P[id]; });
+  Object.keys(sliderSpecs).forEach(id => { document.getElementById(id).value = P[id]; fmtVal(id, P[id]); });
+  ['ink', 'glowColor', 'background'].forEach(id => { document.getElementById(id).value = P[id]; });
+  rebuildFilter();
+  layoutText();
+  applyStatic();
+  setStatus('');
+});
+
+document.querySelectorAll('section > h2').forEach(h => {
+  h.addEventListener('click', () => {
+    h.parentElement.classList.toggle('closed');
+    h.querySelector('.chev').textContent = h.parentElement.classList.contains('closed') ? '+' : '−';
+  });
+});
+
+/* ── export: font embedding ─────────────────────────────────────────── */
+const fontFaceCache = {};
+function arrayBufferToBase64(buf){
+  let binary = '';
+  const bytes = new Uint8Array(buf);
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  return btoa(binary);
+}
+async function getFontFaceCSS(){
+  const key = P.font;
+  if (fontFaceCache[key]) return fontFaceCache[key];
+  const def = FONT_DEFS[key];
+  const q = def.family.replace(/ /g, '+') + (def.weight !== '400' ? `:wght@${def.weight}` : '');
+  const cssUrl = `https://fonts.googleapis.com/css2?family=${q}&display=swap`;
+  const cssText = await (await fetch(cssUrl)).text();
+  const match = cssText.match(/url\((https:\/\/fonts\.gstatic\.com\/[^)]+\.woff2)\)/);
+  if (!match) throw new Error('font file not found');
+  const fontBuf = await (await fetch(match[1])).arrayBuffer();
+  const b64 = arrayBufferToBase64(fontBuf);
+  const css = `@font-face{font-family:'${def.family}';font-weight:${def.weight};font-style:normal;src:url(data:font/woff2;base64,${b64}) format('woff2');}`;
+  fontFaceCache[key] = css;
+  return css;
+}
+
+function buildExportSvgString(w, h, fontFaceCss){
+  const clone = svg.cloneNode(true);
+  clone.setAttribute('width', w);
+  clone.setAttribute('height', h);
+  const defs = clone.querySelector('defs');
+  const styleEl = document.createElementNS(SVGNS, 'style');
+  styleEl.textContent = fontFaceCss;
+  defs.insertBefore(styleEl, defs.firstChild);
+  return new XMLSerializer().serializeToString(clone);
+}
+
+function downloadBlob(blob, name){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+
+const exportBtns = ['exportSvgBtn', 'exportPngBtn', 'exportWebmBtn'].map(id => document.getElementById(id));
+function setExporting(on){ exportBtns.forEach(b => b.disabled = on); }
+
+document.getElementById('exportSvgBtn').addEventListener('click', async () => {
+  setExporting(true); setStatus('Embedding font…', true);
+  try{
+    const fontFace = await getFontFaceCSS();
+    const svgString = buildExportSvgString(vbW, VB_H, fontFace);
+    const blob = new Blob(['<?xml version="1.0" encoding="UTF-8"?>\n' + svgString], { type: 'image/svg+xml;charset=utf-8' });
+    downloadBlob(blob, 'liquid-glow-' + Date.now() + '.svg');
+    setStatus('SVG saved ✓');
+  } catch(err){
+    console.error(err);
+    setStatus('SVG export failed: ' + err.message);
+  } finally { setExporting(false); }
+});
+
+document.getElementById('exportPngBtn').addEventListener('click', async () => {
+  setExporting(true); setStatus('Embedding font…', true);
+  try{
+    const fontFace = await getFontFaceCSS();
+    const exportH = P.exportHeight, exportW = Math.round(exportH * P.aspect);
+    setStatus('Rasterizing…', true);
+    const svgString = buildExportSvgString(exportW, exportH, fontFace);
+    const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const bitmap = await createImageBitmap(blob);
+    const c = document.createElement('canvas');
+    c.width = exportW; c.height = exportH;
+    const cx = c.getContext('2d');
+    cx.drawImage(bitmap, 0, 0, exportW, exportH);
+    bitmap.close();
+    c.toBlob(b => {
+      downloadBlob(b, 'liquid-glow-' + Date.now() + '.png');
+      setStatus('PNG saved ✓');
+      setExporting(false);
+    }, 'image/png');
+  } catch(err){
+    console.error(err);
+    setStatus('PNG export failed: ' + err.message);
+    setExporting(false);
+  }
+});
+
+document.getElementById('exportWebmBtn').addEventListener('click', async () => {
+  if (!window.MediaRecorder){ setStatus('MediaRecorder not supported in this browser.'); return; }
+  setExporting(true); setStatus('Embedding font…', true);
+  try{
+    const fontFace = await getFontFaceCSS();
+    const exportH = 900, exportW = Math.round(exportH * P.aspect);
+    const fps = 15, duration = P.webmDuration;
+
+    const offCanvas = document.createElement('canvas');
+    offCanvas.width = exportW; offCanvas.height = exportH;
+    const ctx = offCanvas.getContext('2d');
+
+    const mimeCandidates = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+    const mime = mimeCandidates.find(m => MediaRecorder.isTypeSupported(m)) || '';
+    if (!mime) throw new Error('no supported WebM codec');
+
+    const stream = offCanvas.captureStream(fps);
+    const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 6000000 });
+    const chunks = [];
+    rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+    const stopped = new Promise(res => { rec.onstop = res; });
+
+    rec.start();
+    setStatus('Recording… 0.0s / ' + duration + 's', true);
+    const startT = performance.now();
+    let stopCapture = false;
+
+    async function captureFrame(){
+      if (stopCapture) return;
+      try{
+        const svgString = buildExportSvgString(exportW, exportH, fontFace);
+        const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+        const bitmap = await createImageBitmap(blob);
+        ctx.clearRect(0, 0, exportW, exportH);
+        ctx.drawImage(bitmap, 0, 0, exportW, exportH);
+        bitmap.close();
+      } catch(e){ console.error(e); }
+      const elapsed = (performance.now() - startT) / 1000;
+      setStatus(`Recording… ${elapsed.toFixed(1)}s / ${duration}s`, true);
+      if (elapsed < duration){ setTimeout(captureFrame, 1000 / fps); }
+      else { stopCapture = true; rec.stop(); }
+    }
+    captureFrame();
+    await stopped;
+
+    const blob = new Blob(chunks, { type: mime });
+    downloadBlob(blob, 'liquid-glow-' + Date.now() + '.webm');
+    setStatus('WebM saved ✓');
+  } catch(err){
+    console.error(err);
+    setStatus('WebM export failed: ' + err.message);
+  } finally { setExporting(false); }
+});
+
+/* ── boot ────────────────────────────────────────────────────────────── */
+function boot(){
+  rebuildFilter();
+  layoutText();
+  applyStatic();
+  requestAnimationFrame(tick);
+}
+if (document.fonts && document.fonts.ready){
+  Promise.all([
+    document.fonts.load('900 100px "Anton"'),
+    document.fonts.load('900 100px "Archivo Black"'),
+    document.fonts.load('900 100px "Bebas Neue"'),
+    document.fonts.load('900 100px "Inter"')
+  ]).catch(() => {}).then(() => document.fonts.ready).then(boot).catch(boot);
+} else {
+  boot();
+}
+</script>
+</body>
+</html>

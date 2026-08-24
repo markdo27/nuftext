@@ -1,0 +1,15 @@
+# Local clones of the source repos this project draws on. They belong to
+# their own repositories (markdo27/Burnt-Noise, markdo27/nuf_pattern) and
+# are kept here only as reading material while working.
+burnt-noise-reference/
+nuf-pattern-reference/
+
+# Scratch renders and verification copies
+_verify_*.html
+*.png
+*.webm
+
+# OS noise
+.DS_Store
+Thumbs.db
+desktop.ini

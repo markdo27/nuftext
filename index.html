@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>NUFTEXT — Generative Type Tools</title>
+<meta name="description" content="Browser-based generative typography tools: thermal halo posters, burnt noise, and liquid glow SVG type.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#08080a; --panel:#0e0e10; --line:#26262b;
+  --ink:#e8e8ea; --dim:#7a7a83; --accent:#ff5a12;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:
+    radial-gradient(120% 80% at 50% 0%, #17171b 0%, #08080a 62%),
+    repeating-linear-gradient(45deg,#0b0b0d 0 2px,transparent 2px 8px);
+  color:var(--ink); font:400 14px/1.6 var(--mono);
+  -webkit-font-smoothing:antialiased; min-height:100vh; padding:0 22px 70px;
+}
+.wrap{max-width:940px;margin:0 auto}
+
+header{padding:74px 0 44px;border-bottom:1px solid var(--line)}
+h1{font:400 clamp(52px,11vw,116px)/0.86 "Anton",sans-serif;letter-spacing:.005em;text-transform:uppercase}
+h1 span{color:var(--accent)}
+header p{color:var(--dim);font-size:12.5px;letter-spacing:.16em;text-transform:uppercase;margin-top:20px}
+header .lede{color:var(--ink);font-size:14.5px;letter-spacing:0;text-transform:none;
+  margin-top:26px;max-width:66ch;line-height:1.72}
+
+h2{font-size:11px;letter-spacing:.19em;color:var(--dim);font-weight:700;
+  text-transform:uppercase;margin:52px 0 20px}
+
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(270px,1fr))}
+.card{
+  display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);
+  padding:22px 22px 20px;text-decoration:none;color:inherit;transition:.15s;position:relative;
+}
+.card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.card .tag{font-size:9.5px;letter-spacing:.17em;color:var(--dim);text-transform:uppercase}
+.card.primary .tag{color:var(--accent)}
+.card h3{font-size:19px;letter-spacing:.05em;margin:12px 0 10px;font-weight:700;text-transform:uppercase}
+.card p{color:var(--dim);font-size:12.5px;line-height:1.66;flex:1}
+.card .go{margin-top:18px;font-size:10.5px;letter-spacing:.15em;color:var(--accent);text-transform:uppercase}
+.swatch{display:flex;height:5px;margin:-22px -22px 20px}
+.swatch i{flex:1}
+
+.pipe{border:1px solid var(--line);background:var(--panel);padding:22px 24px;margin-top:6px}
+.pipe ol{list-style:none;counter-reset:s}
+.pipe li{counter-increment:s;position:relative;padding:9px 0 9px 40px;
+  border-bottom:1px solid #1b1b1f;color:var(--dim);font-size:12.5px;line-height:1.65}
+.pipe li:last-child{border-bottom:0}
+.pipe li::before{content:counter(s,decimal-leading-zero);position:absolute;left:0;top:9px;
+  color:var(--accent);font-size:10.5px;letter-spacing:.1em}
+.pipe li b{color:var(--ink);font-weight:600}
+
+footer{margin-top:64px;padding-top:22px;border-top:1px solid var(--line);
+  color:#4e4e57;font-size:11px;letter-spacing:.06em;display:flex;flex-wrap:wrap;gap:8px 22px}
+footer a{color:var(--dim);text-decoration:none;border-bottom:1px solid #2e2e35}
+footer a:hover{color:var(--accent);border-color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>NUF<span>TEXT</span></h1>
+    <p>Generative Type Tools · WebGL &amp; SVG · Zero dependencies</p>
+    <p class="lede">
+      Three single-file browser tools for building poster typography out of
+      noise fields, fluid simulation and colour ramps. Nothing to install and
+      no build step — every tool is one HTML file that runs offline once loaded.
+    </p>
+  </header>
+
+  <h2>Tools</h2>
+  <div class="grid">
+
+    <a class="card primary" href="nuftext-studio.html">
+      <div class="swatch">
+        <i style="background:#0b0b10"></i><i style="background:#7a0030"></i>
+        <i style="background:#ff2f7a"></i><i style="background:#ff6b00"></i><i style="background:#fffbe6"></i>
+      </div>
+      <div class="tag">Flagship</div>
+      <h3>Nuftext Studio</h3>
+      <p>
+        Layered poster generator built on a thermal halo pipeline. Text and
+        pattern layers become silhouettes, blur into blobs and halos, then get
+        looked up through an editable RGBA palette. Includes a melt simulation,
+        twelve pattern modes, blend modes, font upload and PNG/WebM export.
+      </p>
+      <div class="go">Open studio →</div>
+    </a>
+
+    <a class="card" href="scorch.html">
+      <div class="swatch">
+        <i style="background:#07070a"></i><i style="background:#7a1400"></i>
+        <i style="background:#ff5a12"></i><i style="background:#ffd37a"></i>
+      </div>
+      <div class="tag">WebGL</div>
+      <h3>Scorch / Noise</h3>
+      <p>
+        Burnt text generator. A noise field warps the letterform edges while a
+        second field carves holes through it, then a multi-scale glow pyramid
+        and thermal ramp light the result. Four palettes, live smoulder,
+        high-resolution PNG export.
+      </p>
+      <div class="go">Open tool →</div>
+    </a>
+
+    <a class="card" href="liquid-glow.html">
+      <div class="swatch">
+        <i style="background:#0a0a0c"></i><i style="background:#ff1f8f"></i>
+        <i style="background:#ff5a00"></i><i style="background:#12c9ff"></i>
+      </div>
+      <div class="tag">SVG filters</div>
+      <h3>Liquid / Glow</h3>
+      <p>
+        Vector-native melt typography. A modular <code>&lt;filter&gt;</code>
+        chain fuses letters with a gooey alpha-contrast pass, warps them through
+        animated turbulence, and blooms a mottled glow behind the sharp text.
+        Exports SVG, PNG and WebM.
+      </p>
+      <div class="go">Open tool →</div>
+    </a>
+
+  </div>
+
+  <h2>How the studio pipeline works</h2>
+  <div class="pipe">
+    <ol>
+      <li><b>Source</b> — text is typeset to a mask (optionally run through a melt simulation and burnt-edge noise); the background pattern is evaluated as a scalar density field.</li>
+      <li><b>Silhouette</b> — each source is thresholded to a hard shape, with adjustable sensitivity and an invert switch.</li>
+      <li><b>Blob</b> — the silhouette is blurred and contrast-boosted, turning jagged edges into a soft, defined shape.</li>
+      <li><b>Halo</b> — the blob is blurred again, much wider. This falloff is what becomes the glow.</li>
+      <li><b>Palette lookup</b> — halo brightness indexes an RGBA gradient. Stop <em>opacity</em> is the alpha cutout, so the background shows through wherever the field runs cold.</li>
+      <li><b>Composite</b> — layers land on the background fill through independent blend modes.</li>
+      <li><b>Grain</b> — a per-frame noise texture composites in overlay mode, darkening shadows and lifting highlights rather than flatly adding to both.</li>
+    </ol>
+  </div>
+
+  <h2>Notes</h2>
+  <div class="pipe">
+    <ol>
+      <li><b>Requires WebGL</b> for the studio and Scorch; Liquid/Glow needs only SVG filter support.</li>
+      <li><b>Fonts</b> — four display faces load from Google Fonts, and any local <code>.ttf</code>/<code>.otf</code>/<code>.woff</code> can be uploaded into the studio at runtime.</li>
+      <li><b>Everything is client-side.</b> No uploads leave the browser and there is no backend.</li>
+    </ol>
+  </div>
+
+  <footer>
+    <span>Built with Claude Code</span>
+    <a href="https://github.com/markdo27/nuftext">Source on GitHub</a>
+    <a href="https://github.com/markdo27/Burnt-Noise">Burnt-Noise</a>
+    <a href="https://github.com/markdo27/nuf_pattern">nuf_pattern</a>
+  </footer>
+
+</div>
+</body>
+</html>
