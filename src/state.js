@@ -32,6 +32,8 @@ export const DEFAULTS = Object.freeze({
   wobble: 0.55,
   contourWidth: 0.46,
   glowRadius: 0.58,
+  meltAmount: 0.075,
+  meltFlow: 0.80,
   coreColorization: 0.22,
   effectIntensity: 1.15,
   paletteName: 'magenta',

@@ -26,6 +26,8 @@ test('hex colours convert to normalized RGB', () => {
 
 test('palette changes are copied and reset restores defaults', () => {
   const state = createState();
+  assert.ok(state.meltAmount > 0);
+  assert.ok(state.meltFlow > 0);
   applyPalette(state, 'acid');
   state.palette[0] = '#000000';
   assert.notEqual(PALETTES.acid[0], '#000000');

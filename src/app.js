@@ -24,16 +24,16 @@ function startApplication() {
   let previousTime = performance.now();
 
   const requestRender = () => { renderRequested = true; };
-  const refreshMask = () => {
+  const refreshMask = (preserveDynamics = false) => {
     if (!renderer.width || !renderer.height) return;
     const result = rasterizeText(renderer.width, renderer.height, state);
-    renderer.uploadMask(result.canvas);
+    renderer.uploadMask(result.canvas, { preserveDynamics });
     interaction.setBounds(result.bounds);
     requestRender();
   };
-  const resizeArtwork = (width, height) => {
+  const resizeArtwork = (width, height, options = {}) => {
     renderer.resize(width, height);
-    refreshMask();
+    refreshMask(options.preserveDynamics);
     updateSizeHud();
   };
   const setPreviewSize = () => {
@@ -83,6 +83,7 @@ function startApplication() {
     if (!state.paused) {
       const brush = interaction.next(now, state);
       renderer.stepHeat(deltaTime, brush.from, brush.to, brush.active, state);
+      renderer.stepMelt(deltaTime, state);
       renderer.render(state);
       renderRequested = false;
     } else if (renderRequested) {
@@ -110,6 +111,8 @@ const SLIDER_GROUPS = {
   effectSliders: [
     ['contourWidth', 'Contour width', 0, 1, 0.01, 'percent'],
     ['glowRadius', 'Glow radius', 0, 1, 0.01, 'percent'],
+    ['meltAmount', 'Text melt', 0, 0.16, 0.001, 'percent'],
+    ['meltFlow', 'Melt response', 0, 1, 0.01, 'percent'],
     ['coreColorization', 'Core colorization', 0, 1, 0.01, 'percent'],
     ['effectIntensity', 'Effect intensity', 0.4, 1.8, 0.01, 'decimal']
   ],

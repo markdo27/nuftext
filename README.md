@@ -1,13 +1,14 @@
 # NUFTEXT
 
-An interactive thermal typography tool for the browser. Move across the type to raise a multi-band colour halo, or let the automatic scan animate it for you.
+An interactive thermal typography tool for the browser. Move across the type to liquify its silhouette and raise a multi-band colour halo, or let the automatic scan animate it for you.
 
 **Live:** https://markdo27.github.io/nuftext/
 
 ## What it does
 
-- Keeps the original text crisp while colour appears only around an active heat brush.
+- Keeps unheated text crisp while the active heat brush locally swells, stretches and softens the ink silhouette.
 - Uses a persistent WebGL heat field, so motion leaves a soft trail that fades naturally.
+- Adapts Burnt-Noise's persistent mass/heat simulation so the black source text and its halo deform together, then recover after the brush passes.
 - Includes three reference-driven palettes: Acid Outline, Magenta Heat and Cyan Pink.
 - Supports multiline text, six Google Fonts and local `.ttf`, `.otf`, `.woff` or `.woff2` uploads.
 - Exports the current frame as PNG, live interaction as WebM and a deterministic Auto loop as GIF.
@@ -16,10 +17,12 @@ An interactive thermal typography tool for the browser. Move across the type to 
 
 ```text
 Canvas text mask
-  → three relative-radius blur fields
   → pointer / Auto heat feedback texture
+  → local mass + temperature melt simulation
+  → dynamically deformed source mask
+  → three relative-radius blur fields
   → palette-mapped contour halo
-  → crisp ink + optional heated core
+  → deformed ink + optional heated core
   → print grain and colour misregistration
 ```
 

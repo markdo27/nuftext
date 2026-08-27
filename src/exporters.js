@@ -38,11 +38,11 @@ export class ExportController {
 
   async withOutputSize(width, height, operation) {
     const previous = { width: this.renderer.width, height: this.renderer.height };
-    this.resizeArtwork(width, height);
+    this.resizeArtwork(width, height, { preserveDynamics: true });
     try {
       return await operation();
     } finally {
-      this.resizeArtwork(previous.width, previous.height);
+      this.resizeArtwork(previous.width, previous.height, { preserveDynamics: true });
     }
   }
 
@@ -119,7 +119,7 @@ export class ExportController {
     const fps = 12;
     const frameCount = duration * fps;
     const deltaTime = 1 / fps;
-    const heatSnapshot = this.renderer.snapshotHeat();
+    const dynamicsSnapshot = this.renderer.snapshotDynamics();
     const wasPaused = this.state.paused;
     this.state.paused = true;
 
@@ -147,7 +147,7 @@ export class ExportController {
     } catch (error) {
       this.setStatus(error.message);
     } finally {
-      this.renderer.restoreHeat(heatSnapshot);
+      this.renderer.restoreDynamics(dynamicsSnapshot);
       this.state.paused = wasPaused;
       this.setBusy(false);
     }
@@ -158,13 +158,14 @@ export class ExportController {
     scratch.width = this.renderer.width;
     scratch.height = this.renderer.height;
     const context = scratch.getContext('2d', { willReadFrequently: true });
-    this.renderer.clearHeat();
+    this.renderer.clearDynamics();
     let previous = autoBrushAt(0, this.interaction.bounds, this.state.autoSpeed, this.state.wobble);
 
     for (let frame = 0; frame < frameCount; frame += 1) {
       const time = frame * deltaTime;
       const current = autoBrushAt(time, this.interaction.bounds, this.state.autoSpeed, this.state.wobble);
       this.renderer.stepHeat(deltaTime, previous, current, true, this.state);
+      this.renderer.stepMelt(deltaTime, this.state);
       this.renderer.render(this.state);
       context.drawImage(this.renderer.canvas, 0, 0);
       consumeFrame(context.getImageData(0, 0, scratch.width, scratch.height).data);

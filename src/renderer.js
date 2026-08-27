@@ -71,6 +71,111 @@ void main(){
   gl_FragColor = vec4(heat, heat, heat, 1.0);
 }`;
 
+const MELT_SHADER = `
+precision highp float;
+varying vec2 vUv;
+uniform sampler2D uPrevious;
+uniform sampler2D uMask;
+uniform sampler2D uHeat;
+uniform vec2 uTexel;
+uniform float uDt;
+uniform float uFlow;
+uniform float uReset;
+
+float hash11(float value){
+  return fract(sin(value * 127.1) * 43758.5453123);
+}
+
+void main(){
+  float coverage = texture2D(uMask, vUv).a;
+  if(uReset > 0.5){
+    gl_FragColor = vec4(0.0, 0.0, coverage, 0.0);
+    return;
+  }
+
+  vec4 state = texture2D(uPrevious, vUv);
+  vec2 vertical = vec2(0.0, uTexel.y);
+  vec2 horizontal = vec2(uTexel.x, 0.0);
+  vec4 above = texture2D(uPrevious, vUv + vertical);
+  vec4 below = texture2D(uPrevious, vUv - vertical);
+  vec4 left = texture2D(uPrevious, vUv - horizontal);
+  vec4 right = texture2D(uPrevious, vUv + horizontal);
+
+  float displacement = state.r;
+  float velocity = state.g;
+  float mass = state.b;
+  float temperature = state.a;
+  float brushHeat = texture2D(uHeat, vUv).r;
+  float material = max(coverage, mass);
+
+  float neighbourHeat = (above.a + below.a + left.a + right.a) * 0.25;
+  temperature = mix(temperature, neighbourHeat, clamp(uDt * 2.2, 0.0, 0.18));
+  temperature = max(temperature * exp(-uDt * 1.25), brushHeat * smoothstep(0.005, 0.16, material));
+
+  float yielded = smoothstep(0.18, 0.64, temperature) * uFlow;
+  float column = floor(vUv.x / max(uTexel.x * 2.0, 0.0001));
+  float rivulet = 0.60 + hash11(column) * 0.75;
+  float supply = smoothstep(0.01, 0.22, mass);
+  velocity += yielded * supply * rivulet * uDt * 0.72;
+  velocity *= exp(-uDt * mix(7.0, 2.8, uFlow));
+  velocity = clamp(velocity, 0.0, 1.0);
+
+  float fluxIn = above.b * above.g;
+  float fluxOut = mass * velocity;
+  mass += (fluxIn - fluxOut) * mix(0.7, 2.2, uFlow) * uDt;
+  float anchor = uDt * mix(3.8, 0.35, yielded);
+  mass = mix(mass, coverage, clamp(anchor, 0.0, 0.35));
+  mass *= 1.0 - uDt * 0.16 * (1.0 - smoothstep(0.0, 0.02, coverage));
+  mass = clamp(mass, 0.0, 1.0);
+
+  float replacement = clamp(fluxOut * uDt * 8.0, 0.0, 1.0);
+  displacement = mix(displacement, above.r, replacement);
+  displacement += velocity * uDt;
+  displacement *= exp(-uDt * mix(5.2, 1.1, yielded));
+
+  float neighbours = (left.r + right.r + above.r + below.r) * 0.25;
+  displacement = mix(displacement, neighbours, clamp(uDt * 14.0, 0.0, 0.42));
+  gl_FragColor = vec4(clamp(displacement, 0.0, 1.0), velocity, mass, clamp(temperature, 0.0, 1.0));
+}`;
+
+const DEFORM_SHADER = `
+precision highp float;
+varying vec2 vUv;
+uniform sampler2D uMask;
+uniform sampler2D uHeat;
+uniform sampler2D uMelt;
+uniform vec2 uMeltTexel;
+uniform float uAmount;
+
+void main(){
+  vec4 melt = texture2D(uMelt, vUv);
+  float left = texture2D(uMelt, vUv - vec2(uMeltTexel.x * 2.0, 0.0)).r;
+  float right = texture2D(uMelt, vUv + vec2(uMeltTexel.x * 2.0, 0.0)).r;
+  float above = texture2D(uMelt, vUv + vec2(0.0, uMeltTexel.y * 2.0)).r;
+  float below = texture2D(uMelt, vUv - vec2(0.0, uMeltTexel.y * 2.0)).r;
+  float displacement = min((melt.r * 2.0 + left + right + above + below) / 6.0, 0.55);
+  float heat = max(texture2D(uHeat, vUv).r, melt.a);
+  float activity = smoothstep(0.025, 0.42, max(heat, displacement * 1.8));
+  float slope = clamp(right - left, -0.20, 0.20);
+  float heatLeft = texture2D(uHeat, vUv - vec2(uMeltTexel.x * 3.0, 0.0)).r;
+  float heatRight = texture2D(uHeat, vUv + vec2(uMeltTexel.x * 3.0, 0.0)).r;
+  float heatGradient = heatRight - heatLeft;
+  float ripple = sin(vUv.y * 46.0 + heat * 7.0) + sin(vUv.x * 31.0 - heat * 5.0);
+  float original = texture2D(uMask, vUv).a;
+  float verticalPull = (displacement * 0.25 + heat * 0.025) * uAmount * activity;
+  float lateralPull = (slope * 0.055 + heatGradient * 0.065 + ripple * heat * 0.004) * uAmount * activity;
+  vec2 warpedUv = vUv + vec2(lateralPull, verticalPull);
+  float warped = texture2D(uMask, warpedUv).a;
+  float smearNear = texture2D(uMask, vUv + vec2(lateralPull * 0.35, verticalPull * 0.40)).a;
+  float smearMid = texture2D(uMask, vUv + vec2(lateralPull * 0.70, verticalPull * 0.85)).a;
+  float smearTip = texture2D(uMask, vUv + vec2(lateralPull, verticalPull * 1.35)).a;
+  float downwardSmear = max(smearNear, max(smearMid * 0.92, smearTip * 0.72));
+  float core = mix(original, warped, activity * 0.46);
+  float flowed = max(core, downwardSmear * activity);
+  float mask = clamp(flowed, 0.0, 1.0);
+  gl_FragColor = vec4(mask, mask, mask, mask);
+}`;
+
 const COMPOSITE_SHADER = `
 precision highp float;
 varying vec2 vUv;
@@ -79,6 +184,7 @@ uniform sampler2D uSmall;
 uniform sampler2D uMedium;
 uniform sampler2D uLarge;
 uniform sampler2D uHeat;
+uniform sampler2D uMelt;
 uniform vec3 uBackground;
 uniform vec3 uPaperTint;
 uniform vec3 uTextColor;
@@ -116,7 +222,8 @@ void main(){
   float smallField = texture2D(uSmall, vUv).a;
   float mediumField = texture2D(uMedium, vUv).a;
   float largeField = texture2D(uLarge, vUv).a;
-  float heat = texture2D(uHeat, vUv).r;
+  vec4 melt = texture2D(uMelt, vUv);
+  float heat = max(texture2D(uHeat, vUv).r, max(melt.a, melt.r * 0.8));
   float heatGate = smoothstep(0.025, 0.35, heat);
 
   float profile = max(smallField, max(mediumField * 0.88, largeField * 0.58));
@@ -199,14 +306,22 @@ export class ThermalRenderer {
     this.copyProgram = createProgram(this.gl, COPY_SHADER);
     this.blurProgram = createProgram(this.gl, BLUR_SHADER);
     this.heatProgram = createProgram(this.gl, HEAT_SHADER);
+    this.meltProgram = createProgram(this.gl, MELT_SHADER);
+    this.deformProgram = createProgram(this.gl, DEFORM_SHADER);
     this.compositeProgram = createProgram(this.gl, COMPOSITE_SHADER);
     this.maskTexture = createTexture(this.gl);
+    this.deformedMask = createRenderTarget(this.gl);
     this.small = [createRenderTarget(this.gl), createRenderTarget(this.gl)];
     this.medium = [createRenderTarget(this.gl), createRenderTarget(this.gl)];
     this.large = [createRenderTarget(this.gl), createRenderTarget(this.gl)];
     this.heat = [createRenderTarget(this.gl), createRenderTarget(this.gl)];
+    this.melt = [createRenderTarget(this.gl), createRenderTarget(this.gl)];
     this.heatIndex = 0;
+    this.meltIndex = 0;
+    this.meltReady = false;
+    this.maskReady = false;
     this.maskRevision = 0;
+    this.dynamicRevision = 0;
     this.fieldSignature = '';
     this.frame = 0;
     this.setupQuad();
@@ -254,6 +369,7 @@ export class ThermalRenderer {
     this.height = height;
     this.canvas.width = width;
     this.canvas.height = height;
+    resizeRenderTarget(this.gl, this.deformedMask, width, height);
     const sizes = [
       [this.small, Math.ceil(width / 2), Math.ceil(height / 2)],
       [this.medium, Math.ceil(width / 4), Math.ceil(height / 4)],
@@ -270,17 +386,20 @@ export class ThermalRenderer {
     const width = Math.max(2, Math.round(height * aspect));
     if (this.heat[0].width === width && this.heat[0].height === height) return;
     this.heat.forEach(target => resizeRenderTarget(this.gl, target, width, height));
-    this.clearHeat();
+    this.melt.forEach(target => resizeRenderTarget(this.gl, target, width, height));
+    this.clearDynamics();
   }
 
-  uploadMask(sourceCanvas) {
+  uploadMask(sourceCanvas, { preserveDynamics = false } = {}) {
     const gl = this.gl;
     gl.bindTexture(gl.TEXTURE_2D, this.maskTexture);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, sourceCanvas);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    this.maskReady = true;
     this.maskRevision += 1;
     this.fieldSignature = '';
+    if (!preserveDynamics) this.resetMelt();
   }
 
   clearTarget(target) {
@@ -292,8 +411,34 @@ export class ThermalRenderer {
   }
 
   clearHeat() {
+    this.clearDynamics();
+  }
+
+  clearDynamics() {
     this.heat.forEach(target => this.clearTarget(target));
     this.heatIndex = 0;
+    this.resetMelt();
+    this.dynamicRevision += 1;
+    this.fieldSignature = '';
+  }
+
+  resetMelt() {
+    this.meltIndex = 0;
+    this.meltReady = false;
+    if (!this.maskReady || !this.melt[0].width) {
+      this.melt.forEach(target => target.width && this.clearTarget(target));
+      return;
+    }
+    const gl = this.gl;
+    this.use(this.meltProgram);
+    gl.uniform1f(this.uniform(this.meltProgram, 'uReset'), 1);
+    this.melt.forEach((target, index) => {
+      this.bindTexture(this.meltProgram, 'uPrevious', this.melt[1 - index].texture, 0);
+      this.bindTexture(this.meltProgram, 'uMask', this.maskTexture, 1);
+      this.bindTexture(this.meltProgram, 'uHeat', this.heat[this.heatIndex].texture, 2);
+      this.draw(this.meltProgram, target);
+    });
+    this.meltReady = true;
   }
 
   copyTo(source, target) {
@@ -320,13 +465,13 @@ export class ThermalRenderer {
   }
 
   rebuildFields(state) {
-    const signature = `${this.maskRevision}:${this.width}:${state.contourWidth}:${state.glowRadius}`;
+    const signature = `${this.maskRevision}:${this.dynamicRevision}:${this.width}:${state.meltAmount}:${state.contourWidth}:${state.glowRadius}`;
     if (signature === this.fieldSignature) return;
-    this.copyTo(this.maskTexture, this.small[0]);
+    this.copyTo(this.deformedMask.texture, this.small[0]);
     this.blurPair(this.small, 0.7 + state.contourWidth * 4.5);
-    this.copyTo(this.maskTexture, this.medium[0]);
+    this.copyTo(this.deformedMask.texture, this.medium[0]);
     this.blurPair(this.medium, 1.4 + state.contourWidth * 6.5);
-    this.copyTo(this.maskTexture, this.large[0]);
+    this.copyTo(this.deformedMask.texture, this.large[0]);
     this.blurPair(this.large, 2.0 + state.glowRadius * 10.0);
     this.fieldSignature = signature;
   }
@@ -351,16 +496,51 @@ export class ThermalRenderer {
     this.heatIndex = 1 - this.heatIndex;
   }
 
+  stepMelt(deltaTime, state) {
+    if (!this.meltReady) this.resetMelt();
+    if (!this.meltReady) return;
+    const gl = this.gl;
+    const source = this.melt[this.meltIndex];
+    const target = this.melt[1 - this.meltIndex];
+    const program = this.meltProgram;
+    this.use(program);
+    this.bindTexture(program, 'uPrevious', source.texture, 0);
+    this.bindTexture(program, 'uMask', this.maskTexture, 1);
+    this.bindTexture(program, 'uHeat', this.heat[this.heatIndex].texture, 2);
+    gl.uniform2f(this.uniform(program, 'uTexel'), 1 / source.width, 1 / source.height);
+    gl.uniform1f(this.uniform(program, 'uDt'), Math.min(deltaTime, 1 / 30));
+    gl.uniform1f(this.uniform(program, 'uFlow'), state.meltFlow);
+    gl.uniform1f(this.uniform(program, 'uReset'), 0);
+    this.draw(program, target);
+    this.meltIndex = 1 - this.meltIndex;
+    this.dynamicRevision += 1;
+  }
+
+  renderDeformedMask(state) {
+    const gl = this.gl;
+    const program = this.deformProgram;
+    const melt = this.melt[this.meltIndex];
+    this.use(program);
+    this.bindTexture(program, 'uMask', this.maskTexture, 0);
+    this.bindTexture(program, 'uHeat', this.heat[this.heatIndex].texture, 1);
+    this.bindTexture(program, 'uMelt', melt.texture, 2);
+    gl.uniform2f(this.uniform(program, 'uMeltTexel'), 1 / melt.width, 1 / melt.height);
+    gl.uniform1f(this.uniform(program, 'uAmount'), state.meltAmount);
+    this.draw(program, this.deformedMask);
+  }
+
   render(state) {
+    this.renderDeformedMask(state);
     this.rebuildFields(state);
     const gl = this.gl;
     const program = this.compositeProgram;
     this.use(program);
-    this.bindTexture(program, 'uMask', this.maskTexture, 0);
+    this.bindTexture(program, 'uMask', this.deformedMask.texture, 0);
     this.bindTexture(program, 'uSmall', this.small[0].texture, 1);
     this.bindTexture(program, 'uMedium', this.medium[0].texture, 2);
     this.bindTexture(program, 'uLarge', this.large[0].texture, 3);
     this.bindTexture(program, 'uHeat', this.heat[this.heatIndex].texture, 4);
+    this.bindTexture(program, 'uMelt', this.melt[this.meltIndex].texture, 5);
     this.setColor(program, 'uBackground', state.backgroundColor);
     this.setColor(program, 'uPaperTint', state.paperTint);
     this.setColor(program, 'uTextColor', state.textColor);
@@ -380,20 +560,38 @@ export class ThermalRenderer {
     this.gl.uniform3fv(this.uniform(program, name), hexToRgb(hex));
   }
 
-  snapshotHeat() {
+  readTarget(target) {
     const gl = this.gl;
-    const target = this.heat[this.heatIndex];
     const pixels = new Uint8Array(target.width * target.height * 4);
     gl.bindFramebuffer(gl.FRAMEBUFFER, target.framebuffer);
     gl.readPixels(0, 0, target.width, target.height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
     return { pixels, width: target.width, height: target.height };
   }
 
-  restoreHeat(snapshot) {
+  writeTarget(target, snapshot) {
+    if (snapshot.width !== target.width || snapshot.height !== target.height) return false;
     const gl = this.gl;
-    const target = this.heat[this.heatIndex];
-    if (snapshot.width !== target.width || snapshot.height !== target.height) return;
     gl.bindTexture(gl.TEXTURE_2D, target.texture);
     gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, target.width, target.height, gl.RGBA, gl.UNSIGNED_BYTE, snapshot.pixels);
+    return true;
+  }
+
+  snapshotDynamics() {
+    return {
+      heat: this.readTarget(this.heat[this.heatIndex]),
+      melt: this.readTarget(this.melt[this.meltIndex])
+    };
+  }
+
+  restoreDynamics(snapshot) {
+    const heatRestored = this.heat.every(target => this.writeTarget(target, snapshot.heat));
+    const meltRestored = this.melt.every(target => this.writeTarget(target, snapshot.melt));
+    if (heatRestored) this.heatIndex = 0;
+    if (meltRestored) {
+      this.meltIndex = 0;
+      this.meltReady = true;
+    }
+    this.dynamicRevision += 1;
+    this.fieldSignature = '';
   }
 }
