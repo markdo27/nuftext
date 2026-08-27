@@ -102,7 +102,7 @@ const SLIDER_GROUPS = {
     ['leading', 'Leading', 0.65, 1.3, 0.01, 'decimal', true]
   ],
   interactionSliders: [
-    ['brushSize', 'Brush size', 0.05, 0.45, 0.005, 'percent'],
+    ['brushSize', 'Brush size', 0.005, 0.25, 0.0025, 'percent'],
     ['brushEdgeBlur', 'Brush edge blur', 0, 1, 0.01, 'percent'],
     ['heatStrength', 'Heat strength', 0.2, 1.5, 0.01, 'decimal'],
     ['trail', 'Trail length', 0, 0.95, 0.01, 'percent'],
@@ -154,7 +154,10 @@ function buildSliders(requestRender, refreshMask, interaction) {
 }
 
 function formatSlider(value, format) {
-  if (format === 'percent') return `${Math.round(value * 100)}%`;
+  if (format === 'percent') {
+    const percentage = value * 100;
+    return `${percentage < 10 && percentage % 1 ? percentage.toFixed(1) : Math.round(percentage)}%`;
+  }
   if (format === 'fine') return value.toFixed(4);
   return value.toFixed(2);
 }

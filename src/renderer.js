@@ -163,6 +163,21 @@ float hash11(float value){
   return fract(sin(value * 127.1) * 43758.5453123);
 }
 
+float smoothMass(vec2 uv){
+  float center = texture2D(uMelt, uv).b * 0.40;
+  float left = texture2D(uMelt, uv - vec2(uMeltTexel.x, 0.0)).b * 0.15;
+  float right = texture2D(uMelt, uv + vec2(uMeltTexel.x, 0.0)).b * 0.15;
+  float above = texture2D(uMelt, uv + vec2(0.0, uMeltTexel.y)).b * 0.15;
+  float below = texture2D(uMelt, uv - vec2(0.0, uMeltTexel.y)).b * 0.15;
+  return center + left + right + above + below;
+}
+
+float smoothNoise(float position){
+  float cell = floor(position);
+  float blend = smoothstep(0.0, 1.0, fract(position));
+  return mix(hash11(cell), hash11(cell + 1.0), blend);
+}
+
 void main(){
   vec4 melt = texture2D(uMelt, vUv);
   float left = texture2D(uMelt, vUv - vec2(uMeltTexel.x * 2.0, 0.0)).r;
@@ -170,21 +185,25 @@ void main(){
   float displacement = min((melt.r * 2.0 + left + right) * 0.25, 0.65);
   float heat = max(texture2D(uHeat, vUv).r, melt.a);
   float original = texture2D(uMask, vUv).a;
-  vec4 tailNear = texture2D(uMelt, vUv + vec2(0.0, uMeltTexel.y * 3.0));
-  vec4 tailMid = texture2D(uMelt, vUv + vec2(0.0, uMeltTexel.y * 7.0));
-  vec4 tailFar = texture2D(uMelt, vUv + vec2(0.0, uMeltTexel.y * 12.0));
-  float nearRun = tailNear.b * smoothstep(0.06, 0.42, max(tailNear.a, tailNear.g));
-  float midRun = tailMid.b * smoothstep(0.08, 0.48, max(tailMid.a, tailMid.g)) * 0.78;
-  float farRun = tailFar.b * smoothstep(0.10, 0.52, max(tailFar.a, tailFar.g)) * 0.54;
-  float column = floor(vUv.x / max(uMeltTexel.x * 2.0, 0.0001));
-  float strand = mix(0.10, 1.0, smoothstep(0.36, 0.92, hash11(column)));
+  vec2 nearUv = vUv + vec2(0.0, uMeltTexel.y * 6.0);
+  vec2 midUv = vUv + vec2(0.0, uMeltTexel.y * 14.0);
+  vec2 farUv = vUv + vec2(0.0, uMeltTexel.y * 24.0);
+  vec4 tailNear = texture2D(uMelt, nearUv);
+  vec4 tailMid = texture2D(uMelt, midUv);
+  vec4 tailFar = texture2D(uMelt, farUv);
+  float nearRun = smoothMass(nearUv) * smoothstep(0.06, 0.42, max(tailNear.a, tailNear.g));
+  float midRun = smoothMass(midUv) * smoothstep(0.08, 0.48, max(tailMid.a, tailMid.g)) * 0.78;
+  float farRun = smoothMass(farUv) * smoothstep(0.10, 0.52, max(tailFar.a, tailFar.g)) * 0.54;
+  float strandPosition = vUv.x / max(uMeltTexel.x * 3.0, 0.0001);
+  float strand = mix(0.10, 1.0, smoothstep(0.30, 0.88, smoothNoise(strandPosition)));
   float tailMass = max(nearRun, max(midRun, farRun)) * strand;
-  float missingMaterial = max(original - melt.b, 0.0);
-  float escapedMaterial = max(melt.b, tailMass) * (1.0 - original);
+  float localMass = smoothMass(vUv);
+  float missingMaterial = max(original - localMass, 0.0);
+  float escapedMaterial = max(localMass, tailMass) * (1.0 - original);
   float motion = max(heat, max(melt.g, max(displacement * 1.5, escapedMaterial)));
   float strength = smoothstep(0.0, 0.16, uAmount);
   float activity = smoothstep(0.015, 0.34, max(motion, missingMaterial)) * strength;
-  float fluidShape = smoothstep(0.012, 0.58, max(melt.b, tailMass));
+  float fluidShape = smoothstep(0.008, 0.62, max(localMass, tailMass));
   float mask = mix(original, fluidShape, activity);
   gl_FragColor = vec4(mask, mask, mask, mask);
 }`;
@@ -395,7 +414,7 @@ export class ThermalRenderer {
   }
 
   resizeHeat(aspect) {
-    const height = 384;
+    const height = 768;
     const width = Math.max(2, Math.round(height * aspect));
     if (this.heat[0].width === width && this.heat[0].height === height) return;
     this.heat.forEach(target => resizeRenderTarget(this.gl, target, width, height));

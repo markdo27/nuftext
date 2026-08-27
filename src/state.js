@@ -14,7 +14,7 @@ export const PALETTES = {
 };
 
 export const DEFAULTS = Object.freeze({
-  text: 'Good experiences don’t happen by accident. They are designed.',
+  text: 'Good\nexperiences\ndon’t happen\nby accident.\nThey are\ndesigned.',
   font: 'Archivo Black',
   customFont: '',
   fontScale: 1.17,
@@ -25,7 +25,7 @@ export const DEFAULTS = Object.freeze({
   textColor: '#4a4a4a',
   mode: 'auto',
   paused: false,
-  brushSize: 0.05,
+  brushSize: 0.02,
   brushEdgeBlur: 0.65,
   heatStrength: 1.5,
   trail: 0,
@@ -44,7 +44,7 @@ export const DEFAULTS = Object.freeze({
   misregistration: 0,
   backgroundColor: '#f4f2ec',
   paperTint: '#f4f2ec',
-  aspect: 0.8,
+  aspect: 1.7778,
   exportHeight: 2400,
   duration: 4
 });

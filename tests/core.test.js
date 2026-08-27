@@ -26,14 +26,17 @@ test('hex colours convert to normalized RGB', () => {
 
 test('palette changes are copied and reset restores defaults', () => {
   const state = createState();
-  assert.equal(state.text, 'Good experiences don’t happen by accident. They are designed.');
+  assert.equal(state.text, 'Good\nexperiences\ndon’t happen\nby accident.\nThey are\ndesigned.');
   assert.equal(state.fontScale, 1.17);
   assert.equal(state.tracking, -0.08);
   assert.equal(state.leading, 0.78);
-  assert.equal(state.brushSize, 0.05);
+  assert.equal(state.brushSize, 0.02);
   assert.equal(state.brushEdgeBlur, 0.65);
   assert.equal(state.heatStrength, 1.5);
   assert.equal(state.trail, 0);
+  assert.equal(state.aspect, 1.7778);
+  assert.equal(state.exportHeight, 2400);
+  assert.equal(state.duration, 4);
   assert.equal(state.meltAmount, 0.16);
   assert.equal(state.meltFlow, 1);
   assert.ok(state.meltAmount > 0);
