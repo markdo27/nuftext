@@ -8,6 +8,7 @@ nuf-pattern-reference/
 _verify_*.html
 *.png
 *.webm
+*.gif
 
 # OS noise
 .DS_Store

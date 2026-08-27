@@ -1,74 +1,53 @@
 # NUFTEXT
 
-Generative type tools for the browser. Three single-file HTML tools that build
-poster typography out of noise fields, fluid simulation and colour ramps.
-No build step, no dependencies, no backend — each file runs on its own.
+An interactive thermal typography tool for the browser. Move across the type to raise a multi-band colour halo, or let the automatic scan animate it for you.
 
 **Live:** https://markdo27.github.io/nuftext/
 
-| File | What it is |
-|---|---|
-| [`nuftext-studio.html`](nuftext-studio.html) | **Nuftext Studio** — layered poster generator on a thermal halo pipeline |
-| [`scorch.html`](scorch.html) | **Scorch / Noise** — burnt text generator (WebGL) |
-| [`liquid-glow.html`](liquid-glow.html) | **Liquid / Glow** — melt typography via SVG filter chains |
+## What it does
 
----
+- Keeps the original text crisp while colour appears only around an active heat brush.
+- Uses a persistent WebGL heat field, so motion leaves a soft trail that fades naturally.
+- Includes three reference-driven palettes: Acid Outline, Magenta Heat and Cyan Pink.
+- Supports multiline text, six Google Fonts and local `.ttf`, `.otf`, `.woff` or `.woff2` uploads.
+- Exports the current frame as PNG, live interaction as WebM and a deterministic Auto loop as GIF.
 
-## Nuftext Studio
+## Rendering pipeline
 
-Fuses two earlier projects — [nuf_pattern](https://github.com/markdo27/nuf_pattern)
-(pattern modes) and [Burnt-Noise](https://github.com/markdo27/Burnt-Noise)
-(melt simulation) — and runs both through a thermal halo pipeline adapted from
-a camera-silhouette tool, with artwork replacing the webcam as the source.
-
-### Pipeline
-
-```
-SOURCE      text mask (+ melt sim, burnt edges)  ·  nuf pattern density field
-SILHOUETTE  threshold, with sensitivity + invert
-BLOB        blur → contrast boost
-HALO        blur again, much wider
-PALETTE     halo brightness → RGBA gradient lookup
-COMPOSITE   background fill → pattern layer → text layer, via blend modes
-POST        grain in overlay mode, contrast, vignette
+```text
+Canvas text mask
+  → three relative-radius blur fields
+  → pointer / Auto heat feedback texture
+  → palette-mapped contour halo
+  → crisp ink + optional heated core
+  → print grain and colour misregistration
 ```
 
-### Features
+The application is completely client-side. Uploaded fonts never leave the browser.
 
-- **Layers** — text, pattern and background fill, each with visibility, opacity
-  and 12 blend modes. Optionally merge the text and pattern silhouettes *before*
-  the halo blur so one continuous glow wraps both.
-- **Editable RGBA palette** — draggable gradient stops carrying position, colour
-  and opacity, plus four presets and a mirrored ramp mode.
-- **Melt simulation** — a persistent state buffer (displacement, velocity, mass,
-  heat) integrated over time, so runs accelerate under gravity, material is
-  conserved, and drips neck and swell rather than merely sagging.
-- **12 pattern modes** — blobs, rows, dots, diamonds, rings, waves, stripes,
-  hexagons, starfruit, zigzag, polka dots, and a compact-support metaball mode.
-- **Typography** — justified stacks that size each line independently to fill the
-  column, adjustable tracking and leading, and runtime font upload
-  (`.ttf` / `.otf` / `.woff`).
-- **Export** — PNG up to 3200px, and WebM capture.
+## Development
 
-### A note on the palette
+There is no build step and no production dependency. Serve the repository with any static HTTP server:
 
-Stop **opacity is the alpha cutout**. A cold stop at 0% opacity is what lets the
-background fill show through wherever the field runs cold, and moving that stop
-opens or closes the silhouette. Colour and alpha interpolate independently in
-straight (non-premultiplied) space — interpolating premultiplied, as canvas
-gradients do, drags every colour toward black as it approaches a transparent
-stop, which would darken the cold end of every palette instead of fading it out.
+```sh
+python -m http.server 4173
+```
 
----
+Then open `http://localhost:4173/`.
 
-## Requirements
+Run the pure JavaScript tests with:
 
-- **WebGL** for Nuftext Studio and Scorch. Both use half-float render targets
-  where available and fall back to 8-bit otherwise.
-- **SVG filter support** for Liquid / Glow — no WebGL needed.
+```sh
+npm test
+```
 
-Display faces load from Google Fonts; everything else is inline. Once a page has
-loaded it runs offline.
+## Browser support
+
+A current browser with WebGL and ES modules is required. WebM export depends on `MediaRecorder`; PNG and GIF remain available when the browser does not provide a WebM codec.
+
+## Credits
+
+The visual direction is based on supplied print and motion references. The browser GIF encoder is adapted from the earlier [Burnt-Noise](https://github.com/markdo27/Burnt-Noise) project.
 
 ## Licence
 
