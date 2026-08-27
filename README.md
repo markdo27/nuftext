@@ -6,9 +6,10 @@ An interactive thermal typography tool for the browser. Move across the type to 
 
 ## What it does
 
-- Keeps unheated text crisp while the active heat brush locally swells, stretches and softens the ink silhouette.
+- Keeps unheated text crisp while the active heat brush locally erodes the ink into downward molten runs.
 - Uses a persistent WebGL heat field, so motion leaves a soft trail that fades naturally.
-- Adapts Burnt-Noise's persistent mass/heat simulation so the black source text and its halo deform together, then recover after the brush passes.
+- Adds independent brush size and edge-blur controls for hard spotlights or broad feathered heat.
+- Adapts Burnt-Noise's persistent mass/heat simulation so the source text loses material, drips away with its halo, then reforms slowly after cooling.
 - Includes three reference-driven palettes: Acid Outline, Magenta Heat and Cyan Pink.
 - Supports multiline text, six Google Fonts and local `.ttf`, `.otf`, `.woff` or `.woff2` uploads.
 - Exports the current frame as PNG, live interaction as WebM and a deterministic Auto loop as GIF.

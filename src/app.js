@@ -103,6 +103,7 @@ const SLIDER_GROUPS = {
   ],
   interactionSliders: [
     ['brushSize', 'Brush size', 0.05, 0.45, 0.005, 'percent'],
+    ['brushEdgeBlur', 'Brush edge blur', 0, 1, 0.01, 'percent'],
     ['heatStrength', 'Heat strength', 0.2, 1.5, 0.01, 'decimal'],
     ['trail', 'Trail length', 0, 0.95, 0.01, 'percent'],
     ['autoSpeed', 'Auto speed', 0.2, 2.5, 0.01, 'decimal'],
@@ -111,7 +112,7 @@ const SLIDER_GROUPS = {
   effectSliders: [
     ['contourWidth', 'Contour width', 0, 1, 0.01, 'percent'],
     ['glowRadius', 'Glow radius', 0, 1, 0.01, 'percent'],
-    ['meltAmount', 'Text melt', 0, 0.16, 0.001, 'percent'],
+    ['meltAmount', 'Text melt', 0, 0.24, 0.001, 'percent'],
     ['meltFlow', 'Melt response', 0, 1, 0.01, 'percent'],
     ['coreColorization', 'Core colorization', 0, 1, 0.01, 'percent'],
     ['effectIntensity', 'Effect intensity', 0.4, 1.8, 0.01, 'decimal']

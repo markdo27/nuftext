@@ -44,6 +44,7 @@ uniform vec2 uTo;
 uniform float uAspect;
 uniform float uDecay;
 uniform float uRadius;
+uniform float uEdgeBlur;
 uniform float uStrength;
 uniform float uActive;
 
@@ -65,7 +66,10 @@ void main(){
   vec2 start = vec2(uFrom.x * uAspect, uFrom.y);
   vec2 end = vec2(uTo.x * uAspect, uTo.y);
   float distanceToBrush = segmentDistance(point, start, end);
-  float injection = exp(-4.0 * distanceToBrush * distanceToBrush / max(uRadius * uRadius, 0.00001));
+  float normalizedDistance = distanceToBrush / max(uRadius, 0.0001);
+  float innerEdge = mix(0.94, 0.02, uEdgeBlur);
+  float outerEdge = mix(1.0, 1.75, uEdgeBlur);
+  float injection = 1.0 - smoothstep(innerEdge, outerEdge, normalizedDistance);
   injection *= uStrength * uActive;
   float heat = max(previous, clamp(injection, 0.0, 1.0));
   gl_FragColor = vec4(heat, heat, heat, 1.0);
@@ -80,6 +84,7 @@ uniform sampler2D uHeat;
 uniform vec2 uTexel;
 uniform float uDt;
 uniform float uFlow;
+uniform float uAmount;
 uniform float uReset;
 
 float hash11(float value){
@@ -111,27 +116,34 @@ void main(){
   float neighbourHeat = (above.a + below.a + left.a + right.a) * 0.25;
   temperature = mix(temperature, neighbourHeat, clamp(uDt * 2.2, 0.0, 0.18));
   temperature = max(temperature * exp(-uDt * 1.25), brushHeat * smoothstep(0.005, 0.16, material));
+  float fallingHeat = above.a * smoothstep(0.01, 0.20, above.b) * 0.985;
+  temperature = max(temperature, fallingHeat);
 
-  float yielded = smoothstep(0.18, 0.64, temperature) * uFlow;
+  float meltStrength = smoothstep(0.0, 0.16, uAmount);
+  float yielded = smoothstep(0.14, 0.58, temperature) * uFlow * meltStrength;
   float column = floor(vUv.x / max(uTexel.x * 2.0, 0.0001));
-  float rivulet = 0.60 + hash11(column) * 0.75;
+  float columnFlow = hash11(column);
+  float rivulet = 0.12 + columnFlow * columnFlow * 1.95;
   float supply = smoothstep(0.01, 0.22, mass);
-  velocity += yielded * supply * rivulet * uDt * 0.72;
-  velocity *= exp(-uDt * mix(7.0, 2.8, uFlow));
+  velocity += yielded * supply * rivulet * uDt * 1.75;
+  velocity *= exp(-uDt * mix(6.5, 1.2, uFlow));
   velocity = clamp(velocity, 0.0, 1.0);
 
   float fluxIn = above.b * above.g;
   float fluxOut = mass * velocity;
-  mass += (fluxIn - fluxOut) * mix(0.7, 2.2, uFlow) * uDt;
-  float anchor = uDt * mix(3.8, 0.35, yielded);
-  mass = mix(mass, coverage, clamp(anchor, 0.0, 0.35));
-  mass *= 1.0 - uDt * 0.16 * (1.0 - smoothstep(0.0, 0.02, coverage));
+  mass += (fluxIn - fluxOut) * mix(0.8, 4.8, uFlow) * uDt;
+  float sideMass = (left.b + right.b) * 0.5;
+  mass = mix(mass, sideMass, clamp(uDt * mix(0.12, 0.42, uFlow), 0.0, 0.08));
+  float coolSolid = (1.0 - yielded) * (1.0 - smoothstep(0.08, 0.55, brushHeat));
+  float recoveryRate = mix(0.8, 0.15, uFlow) * coolSolid + (1.0 - meltStrength) * 5.0;
+  mass = mix(mass, coverage, clamp(uDt * recoveryRate, 0.0, 0.22));
+  mass *= 1.0 - uDt * 0.48 * (1.0 - smoothstep(0.0, 0.02, coverage));
   mass = clamp(mass, 0.0, 1.0);
 
   float replacement = clamp(fluxOut * uDt * 8.0, 0.0, 1.0);
   displacement = mix(displacement, above.r, replacement);
   displacement += velocity * uDt;
-  displacement *= exp(-uDt * mix(5.2, 1.1, yielded));
+  displacement *= exp(-uDt * mix(4.0, 0.72, yielded));
 
   float neighbours = (left.r + right.r + above.r + below.r) * 0.25;
   displacement = mix(displacement, neighbours, clamp(uDt * 14.0, 0.0, 0.42));
@@ -147,32 +159,33 @@ uniform sampler2D uMelt;
 uniform vec2 uMeltTexel;
 uniform float uAmount;
 
+float hash11(float value){
+  return fract(sin(value * 127.1) * 43758.5453123);
+}
+
 void main(){
   vec4 melt = texture2D(uMelt, vUv);
   float left = texture2D(uMelt, vUv - vec2(uMeltTexel.x * 2.0, 0.0)).r;
   float right = texture2D(uMelt, vUv + vec2(uMeltTexel.x * 2.0, 0.0)).r;
-  float above = texture2D(uMelt, vUv + vec2(0.0, uMeltTexel.y * 2.0)).r;
-  float below = texture2D(uMelt, vUv - vec2(0.0, uMeltTexel.y * 2.0)).r;
-  float displacement = min((melt.r * 2.0 + left + right + above + below) / 6.0, 0.55);
+  float displacement = min((melt.r * 2.0 + left + right) * 0.25, 0.65);
   float heat = max(texture2D(uHeat, vUv).r, melt.a);
-  float activity = smoothstep(0.025, 0.42, max(heat, displacement * 1.8));
-  float slope = clamp(right - left, -0.20, 0.20);
-  float heatLeft = texture2D(uHeat, vUv - vec2(uMeltTexel.x * 3.0, 0.0)).r;
-  float heatRight = texture2D(uHeat, vUv + vec2(uMeltTexel.x * 3.0, 0.0)).r;
-  float heatGradient = heatRight - heatLeft;
-  float ripple = sin(vUv.y * 46.0 + heat * 7.0) + sin(vUv.x * 31.0 - heat * 5.0);
   float original = texture2D(uMask, vUv).a;
-  float verticalPull = (displacement * 0.25 + heat * 0.025) * uAmount * activity;
-  float lateralPull = (slope * 0.055 + heatGradient * 0.065 + ripple * heat * 0.004) * uAmount * activity;
-  vec2 warpedUv = vUv + vec2(lateralPull, verticalPull);
-  float warped = texture2D(uMask, warpedUv).a;
-  float smearNear = texture2D(uMask, vUv + vec2(lateralPull * 0.35, verticalPull * 0.40)).a;
-  float smearMid = texture2D(uMask, vUv + vec2(lateralPull * 0.70, verticalPull * 0.85)).a;
-  float smearTip = texture2D(uMask, vUv + vec2(lateralPull, verticalPull * 1.35)).a;
-  float downwardSmear = max(smearNear, max(smearMid * 0.92, smearTip * 0.72));
-  float core = mix(original, warped, activity * 0.46);
-  float flowed = max(core, downwardSmear * activity);
-  float mask = clamp(flowed, 0.0, 1.0);
+  vec4 tailNear = texture2D(uMelt, vUv + vec2(0.0, uMeltTexel.y * 3.0));
+  vec4 tailMid = texture2D(uMelt, vUv + vec2(0.0, uMeltTexel.y * 7.0));
+  vec4 tailFar = texture2D(uMelt, vUv + vec2(0.0, uMeltTexel.y * 12.0));
+  float nearRun = tailNear.b * smoothstep(0.06, 0.42, max(tailNear.a, tailNear.g));
+  float midRun = tailMid.b * smoothstep(0.08, 0.48, max(tailMid.a, tailMid.g)) * 0.78;
+  float farRun = tailFar.b * smoothstep(0.10, 0.52, max(tailFar.a, tailFar.g)) * 0.54;
+  float column = floor(vUv.x / max(uMeltTexel.x * 2.0, 0.0001));
+  float strand = mix(0.10, 1.0, smoothstep(0.36, 0.92, hash11(column)));
+  float tailMass = max(nearRun, max(midRun, farRun)) * strand;
+  float missingMaterial = max(original - melt.b, 0.0);
+  float escapedMaterial = max(melt.b, tailMass) * (1.0 - original);
+  float motion = max(heat, max(melt.g, max(displacement * 1.5, escapedMaterial)));
+  float strength = smoothstep(0.0, 0.16, uAmount);
+  float activity = smoothstep(0.015, 0.34, max(motion, missingMaterial)) * strength;
+  float fluidShape = smoothstep(0.012, 0.58, max(melt.b, tailMass));
+  float mask = mix(original, fluidShape, activity);
   gl_FragColor = vec4(mask, mask, mask, mask);
 }`;
 
@@ -490,6 +503,7 @@ export class ThermalRenderer {
     gl.uniform1f(this.uniform(this.heatProgram, 'uAspect'), this.width / this.height);
     gl.uniform1f(this.uniform(this.heatProgram, 'uDecay'), decay);
     gl.uniform1f(this.uniform(this.heatProgram, 'uRadius'), state.brushSize);
+    gl.uniform1f(this.uniform(this.heatProgram, 'uEdgeBlur'), state.brushEdgeBlur);
     gl.uniform1f(this.uniform(this.heatProgram, 'uStrength'), state.heatStrength);
     gl.uniform1f(this.uniform(this.heatProgram, 'uActive'), active ? 1 : 0);
     this.draw(this.heatProgram, target);
@@ -510,6 +524,7 @@ export class ThermalRenderer {
     gl.uniform2f(this.uniform(program, 'uTexel'), 1 / source.width, 1 / source.height);
     gl.uniform1f(this.uniform(program, 'uDt'), Math.min(deltaTime, 1 / 30));
     gl.uniform1f(this.uniform(program, 'uFlow'), state.meltFlow);
+    gl.uniform1f(this.uniform(program, 'uAmount'), state.meltAmount);
     gl.uniform1f(this.uniform(program, 'uReset'), 0);
     this.draw(program, target);
     this.meltIndex = 1 - this.meltIndex;

@@ -20,6 +20,36 @@ function measureTracked(text, tracking) {
   return glyphWidth + Math.max(0, characters.length - 1) * tracking;
 }
 
+function balanceWords(source) {
+  if (source.includes('\n')) return source.split('\n');
+  const words = source.trim().split(/\s+/).filter(Boolean);
+  if (words.length < 4) return [source];
+  const lineCount = Math.min(5, Math.max(2, Math.round(words.length / 2.35)));
+  const lines = [];
+  let wordIndex = 0;
+
+  for (let lineIndex = 0; lineIndex < lineCount; lineIndex += 1) {
+    const remainingLines = lineCount - lineIndex;
+    const remainingWords = words.slice(wordIndex);
+    const targetLength = remainingWords.join(' ').length / remainingLines;
+    const line = [];
+
+    while (wordIndex < words.length) {
+      const candidate = [...line, words[wordIndex]].join(' ');
+      const wordsAfterCandidate = words.length - wordIndex - 1;
+      if (line.length && candidate.length > targetLength && wordsAfterCandidate >= remainingLines - 1) {
+        const current = line.join(' ');
+        if (Math.abs(current.length - targetLength) <= Math.abs(candidate.length - targetLength)) break;
+      }
+      line.push(words[wordIndex]);
+      wordIndex += 1;
+      if (words.length - wordIndex === remainingLines - 1) break;
+    }
+    lines.push(line.join(' '));
+  }
+  return lines;
+}
+
 function fitFontSize(lines, width, height, state) {
   const availableWidth = width * 0.82;
   const availableHeight = height * 0.76;
@@ -55,7 +85,7 @@ export function rasterizeText(width, height, state) {
   context.clearRect(0, 0, width, height);
 
   const source = state.uppercase ? state.text.toLocaleUpperCase() : state.text;
-  const lines = source.replace(/\r/g, '').split('\n');
+  const lines = balanceWords(source.replace(/\r/g, ''));
   const size = fitFontSize(lines, width, height, state);
   const lineHeight = size * state.leading;
   const blockHeight = lines.length * lineHeight;
