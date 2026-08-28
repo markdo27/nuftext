@@ -16,8 +16,12 @@ An interactive thermal typography tool for the browser. Move across the type to 
 - The ink stays its own colour and the palette renders as a contour halo hugging each letterform, so heated type reads as gooey letters rather than a blob of colour.
 - Goo amount, spread, viscosity and threshold take the type from softly swollen, through merged metaballs, to shredded droplets.
 - Goo dissolve fades the coverage before the threshold, the way the Codrops demo animates opacity: at `0` the heated letters only swell and fuse, and as it rises they neck, break into droplets and melt away entirely before reforming. The halo fades with the material it belongs to, so no flat disc of colour is left behind.
-- Builds a gradient map by downscaling the mask, then uses it twice: heavier ink goos harder (density bias), and the Auto edge scan hops between dense letter clusters near the outside of the block, widening the brush on the heaviest ones.
-- Three interaction modes: Manual brush, Auto sweep across the block, and Auto edge. Both automatic modes are pure functions of time, so the GIF export replays exactly what the canvas showed.
+- Builds a gradient map by downscaling the mask, so heavier ink goos harder (density bias).
+- Three interaction modes: Manual brush, Auto sweep across the block, and Words. Both automatic modes are pure functions of time, so the GIF export replays exactly what the canvas showed.
+- Words selects by typographic unit rather than by position: the heat is a capsule sized to one whole character, word or line, so a word melts as a word. Each unit blooms and releases inside its own hold.
+- Scan order is reading order, shuffled, or click to pick. The shuffle deals a permutation per round so every unit is visited once instead of drawing independently; pick holds the effect on whatever you click, which is the one to use for a still frame.
+- Reading rhythm dwells on long units and skims short ones. It scales around the mean, so the average hold does not change with it.
+- Scan voices runs up to four units at once, spaced an even share of a round apart, so the artwork always has one unit forming while another settles.
 - Includes three reference-driven palettes: Acid Outline, Magenta Heat and Cyan Pink.
 - Supports multiline text, six Google Fonts and local `.ttf`, `.otf`, `.woff` or `.woff2` uploads.
 - Exports the current frame as PNG, live interaction as WebM and a deterministic Auto loop as GIF.
@@ -27,7 +31,7 @@ An interactive thermal typography tool for the browser. Move across the type to 
 ```text
 Canvas text mask
   → downscaled density map (gradient map)
-  → pointer / Auto / Auto edge heat feedback texture
+  → pointer / Auto sweep / word capsule heat feedback texture
   → viscous goo field (lateral diffusion + linear dwell settle)
   → blurred mask levels blended by local goo strength × density
   → alpha threshold → gooey metaball silhouette

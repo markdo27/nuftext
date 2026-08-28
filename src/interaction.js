@@ -1,5 +1,5 @@
 import { autoBrushAt, clamp } from './math.js';
-import { buildEdgeTargets, edgeBrush, emptyEdgeTargets } from './auto-edge.js';
+import { capsuleBrush, emptyScanTargets, scanBrushes, scanUnits } from './word-scan.js';
 
 const IDLE_RESUME_MS = 1500;
 
@@ -15,8 +15,8 @@ export class HeatInteraction {
     this.releasedAt = 0;
     this.manualUntil = 0;
     this.autoStart = performance.now();
-    this.edgeTargets = emptyEdgeTargets();
-    this.edgeStep = -1;
+    this.scanTargets = emptyScanTargets();
+    this.picked = new Set();
     this.attachEvents();
   }
 
@@ -25,6 +25,7 @@ export class HeatInteraction {
       this.canvas.setPointerCapture?.(event.pointerId);
       this.pointerActive = true;
       this.readPointer(event);
+      this.pendingPick = { ...this.pointer };
     });
     this.canvas.addEventListener('pointermove', event => {
       const canHover = event.pointerType === 'mouse';
@@ -64,15 +65,40 @@ export class HeatInteraction {
     this.bounds = bounds;
   }
 
-  setDensity(grid) {
-    this.edgeTargets = buildEdgeTargets(grid);
-    this.edgeStep = -1;
+  setLayout(targets) {
+    this.scanTargets = targets;
+    this.clearPicks();
+  }
+
+  clearPicks() {
+    this.picked = new Set();
+    this.pendingPick = null;
+  }
+
+  // Clicking a unit toggles it; clicking empty space leaves the selection be.
+  resolvePick(state) {
+    const point = this.pendingPick;
+    this.pendingPick = null;
+    if (!point) return;
+    const units = scanUnits(this.scanTargets, state.scanUnit);
+    const hit = units.findIndex(box =>
+      point.x >= box.left && point.x <= box.right && point.y >= box.top && point.y <= box.bottom);
+    if (hit < 0) return;
+    const picked = new Set(this.picked);
+    picked.has(hit) ? picked.delete(hit) : picked.add(hit);
+    this.picked = picked;
+  }
+
+  pickedBrushes(state) {
+    const units = scanUnits(this.scanTargets, state.scanUnit);
+    return [...this.picked]
+      .filter(index => index < units.length)
+      .map(index => capsuleBrush(units[index], state, 1, index));
   }
 
   resetClock() {
     this.autoStart = performance.now();
     this.previous = { x: this.bounds.left, y: (this.bounds.top + this.bounds.bottom) * 0.5 };
-    this.edgeStep = -1;
     this.releasedAt = 0;
   }
 
@@ -82,32 +108,28 @@ export class HeatInteraction {
     this.cursorRing.style.height = `${diameter}px`;
   }
 
+  // Returns every capsule to inject this frame.
   next(now, state) {
+    // In pick mode the pointer selects rather than paints, so it never takes
+    // over the way it does in the other automatic modes.
+    if (state.mode === 'words' && state.scanOrder === 'pick') {
+      this.resolvePick(state);
+      return this.pickedBrushes(state);
+    }
+    this.pendingPick = null;
     const pointerOverridesAuto = this.pointerActive && now < this.manualUntil;
     const automatic = state.mode !== 'manual' && !pointerOverridesAuto;
     return automatic
       ? this.automaticBrush((now - this.autoStart) / 1000, state)
-      : this.pointerBrush(now, state);
+      : [this.pointerBrush(now, state)];
   }
 
   automaticBrush(seconds, state) {
-    if (state.mode === 'edge') return this.edgeBrushAt(seconds, state);
+    if (state.mode === 'words') return scanBrushes(seconds, this.scanTargets, state);
     const to = autoBrushAt(seconds, this.bounds, state.autoSpeed, state.wobble);
     const from = this.previous;
     this.previous = to;
-    this.edgeStep = -1;
-    return { from, to, active: 1, radius: state.brushSize };
-  }
-
-  // Each step lands somewhere new, so start the stroke where it landed rather
-  // than dragging a streak across the artwork from the previous cluster.
-  edgeBrushAt(seconds, state) {
-    const sample = edgeBrush(seconds, this.edgeTargets, state);
-    const to = { x: sample.x, y: sample.y };
-    const from = sample.step === this.edgeStep ? this.previous : to;
-    this.edgeStep = sample.step;
-    this.previous = to;
-    return { from, to, active: 1, radius: sample.radius };
+    return [{ from, to, active: 1, radius: state.brushSize }];
   }
 
   // Heat keeps feeding the goo for a while after the pointer leaves, so a quick

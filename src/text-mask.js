@@ -88,6 +88,58 @@ function lineOrigin(align, width, margin, lineWidth) {
   return (width - lineWidth) * 0.5;
 }
 
+// Vertical extent of a word, from the font where the browser reports it.
+function verticalExtent(word, baseline, size) {
+  const metrics = context.measureText(word);
+  const ascent = metrics.actualBoundingBoxAscent || size * 0.75;
+  const descent = metrics.actualBoundingBoxDescent || size * 0.22;
+  return { top: baseline - ascent, bottom: baseline + descent };
+}
+
+// Walks the line the same way drawTracked does, so the boxes line up with the
+// glyphs actually painted into the mask.
+function trackedBoxes(line, x, baseline, tracking, size) {
+  const words = [];
+  const characters = [];
+  let cursor = x;
+  let start = null;
+  let word = '';
+
+  const flush = right => {
+    if (start === null) return;
+    words.push({ left: start, right, ...verticalExtent(word, baseline, size) });
+    start = null;
+    word = '';
+  };
+
+  for (const character of line) {
+    const advance = context.measureText(character).width;
+    if (character === ' ') {
+      flush(cursor - tracking);
+    } else {
+      if (start === null) start = cursor;
+      word += character;
+      characters.push({
+        left: cursor,
+        right: cursor + advance,
+        ...verticalExtent(character, baseline, size)
+      });
+    }
+    cursor += advance + tracking;
+  }
+  flush(cursor - tracking);
+  return { words, characters };
+}
+
+function mergeBoxes(boxes) {
+  return boxes.reduce((merged, box) => ({
+    left: Math.min(merged.left, box.left),
+    right: Math.max(merged.right, box.right),
+    top: Math.min(merged.top, box.top),
+    bottom: Math.max(merged.bottom, box.bottom)
+  }));
+}
+
 function drawTracked(text, x, baseline, tracking) {
   let cursor = x;
   for (const character of text) {
@@ -116,16 +168,37 @@ export function rasterizeText(width, height, state) {
 
   let left = width;
   let right = 0;
+  const characterBoxes = [];
+  const wordBoxes = [];
+  const lineBoxes = [];
   lines.forEach((line, index) => {
     const lineWidth = measureTracked(line, tracking);
     const x = lineOrigin(state.align, width, margin, lineWidth);
     const baseline = top + index * lineHeight + size * 0.79;
     drawTracked(line, x, baseline, tracking);
+    const boxes = trackedBoxes(line, x, baseline, tracking, size);
+    if (boxes.words.length) {
+      characterBoxes.push(...boxes.characters);
+      wordBoxes.push(...boxes.words);
+      lineBoxes.push(mergeBoxes(boxes.words));
+    }
     if (line.length) {
       left = Math.min(left, x);
       right = Math.max(right, x + lineWidth);
     }
   });
+
+  const normalize = box => ({
+    left: box.left / width,
+    right: box.right / width,
+    top: box.top / height,
+    bottom: box.bottom / height
+  });
+  const targets = {
+    characters: characterBoxes.map(normalize),
+    words: wordBoxes.map(normalize),
+    lines: lineBoxes.map(normalize)
+  };
 
   const hasText = right > left;
   const bounds = hasText ? {
@@ -135,7 +208,7 @@ export function rasterizeText(width, height, state) {
     bottom: clamp((top + blockHeight) / height + 0.05)
   } : { left: 0.15, right: 0.85, top: 0.3, bottom: 0.7 };
 
-  return { canvas: maskCanvas, bounds, fontSize: size, density: buildDensity(width, height) };
+  return { canvas: maskCanvas, bounds, targets, fontSize: size, density: buildDensity(width, height) };
 }
 
 export async function loadCustomFont(file) {

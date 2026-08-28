@@ -44,6 +44,7 @@ uniform vec2 uTo;
 uniform float uAspect;
 uniform float uDecay;
 uniform float uDrain;
+uniform float uSettle;
 uniform float uRadius;
 uniform float uEdgeBlur;
 uniform float uStrength;
@@ -62,7 +63,8 @@ void main(){
                    + texture2D(uPrevious, vUv - vec2(uTexel.x, 0.0)).r
                    + texture2D(uPrevious, vUv + vec2(0.0, uTexel.y)).r
                    + texture2D(uPrevious, vUv - vec2(0.0, uTexel.y)).r;
-  previous = max(mix(previous, neighbours * 0.25, 0.035) * uDecay - uDrain, 0.0);
+  float settled = max(mix(previous, neighbours * 0.25, 0.035) * uDecay - uDrain, 0.0);
+  previous = mix(previous, settled, uSettle);
   vec2 point = vec2(vUv.x * uAspect, vUv.y);
   vec2 start = vec2(uFrom.x * uAspect, uFrom.y);
   vec2 end = vec2(uTo.x * uAspect, uTo.y);
@@ -228,6 +230,7 @@ void main(){
 
 const FIELD_DRAIN = 0.09;
 const MIN_ENVELOPE = 0.05;
+const IDLE_POINT = { x: -1, y: -1 };
 const GOO_SHARPNESS = 14;
 const GOO_NEAR_RADIUS = [1.0, 3.0];
 const GOO_FAR_RADIUS = [2.0, 7.0];
@@ -475,26 +478,34 @@ export class ThermalRenderer {
     this.fieldSignature = signature;
   }
 
-  stepHeat(deltaTime, brush, state) {
+  // Accepts any number of brushes. The field must settle exactly once per
+  // frame, so only the first pass decays; the rest just add their heat.
+  stepHeat(deltaTime, brushes, state) {
     const gl = this.gl;
-    const source = this.heat[this.heatIndex];
-    const target = this.heat[1 - this.heatIndex];
+    const idle = { from: IDLE_POINT, to: IDLE_POINT, active: 0, radius: state.brushSize };
+    const passes = brushes.length ? brushes : [idle];
     const halfLife = 0.08 + state.trail * 1.8;
     const decay = Math.pow(0.5, deltaTime / halfLife);
-    this.use(this.heatProgram);
-    this.bindTexture(this.heatProgram, 'uPrevious', source.texture, 0);
-    gl.uniform2f(this.uniform(this.heatProgram, 'uTexel'), 1 / source.width, 1 / source.height);
-    gl.uniform2f(this.uniform(this.heatProgram, 'uFrom'), brush.from.x, 1 - brush.from.y);
-    gl.uniform2f(this.uniform(this.heatProgram, 'uTo'), brush.to.x, 1 - brush.to.y);
-    gl.uniform1f(this.uniform(this.heatProgram, 'uAspect'), this.width / this.height);
-    gl.uniform1f(this.uniform(this.heatProgram, 'uDecay'), decay);
-    gl.uniform1f(this.uniform(this.heatProgram, 'uDrain'), deltaTime * FIELD_DRAIN);
-    gl.uniform1f(this.uniform(this.heatProgram, 'uRadius'), brush.radius ?? state.brushSize);
-    gl.uniform1f(this.uniform(this.heatProgram, 'uEdgeBlur'), state.brushEdgeBlur);
-    gl.uniform1f(this.uniform(this.heatProgram, 'uStrength'), state.heatStrength);
-    gl.uniform1f(this.uniform(this.heatProgram, 'uActive'), clamp(Number(brush.active)));
-    this.draw(this.heatProgram, target);
-    this.heatIndex = 1 - this.heatIndex;
+
+    passes.forEach((brush, pass) => {
+      const source = this.heat[this.heatIndex];
+      const target = this.heat[1 - this.heatIndex];
+      this.use(this.heatProgram);
+      this.bindTexture(this.heatProgram, 'uPrevious', source.texture, 0);
+      gl.uniform2f(this.uniform(this.heatProgram, 'uTexel'), 1 / source.width, 1 / source.height);
+      gl.uniform2f(this.uniform(this.heatProgram, 'uFrom'), brush.from.x, 1 - brush.from.y);
+      gl.uniform2f(this.uniform(this.heatProgram, 'uTo'), brush.to.x, 1 - brush.to.y);
+      gl.uniform1f(this.uniform(this.heatProgram, 'uAspect'), this.width / this.height);
+      gl.uniform1f(this.uniform(this.heatProgram, 'uDecay'), decay);
+      gl.uniform1f(this.uniform(this.heatProgram, 'uDrain'), deltaTime * FIELD_DRAIN);
+      gl.uniform1f(this.uniform(this.heatProgram, 'uSettle'), pass === 0 ? 1 : 0);
+      gl.uniform1f(this.uniform(this.heatProgram, 'uRadius'), brush.radius ?? state.brushSize);
+      gl.uniform1f(this.uniform(this.heatProgram, 'uEdgeBlur'), state.brushEdgeBlur);
+      gl.uniform1f(this.uniform(this.heatProgram, 'uStrength'), state.heatStrength);
+      gl.uniform1f(this.uniform(this.heatProgram, 'uActive'), clamp(Number(brush.active)));
+      this.draw(this.heatProgram, target);
+      this.heatIndex = 1 - this.heatIndex;
+    });
   }
 
   stepGoo(deltaTime, state) {
