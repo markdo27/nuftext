@@ -28,7 +28,9 @@ function startApplication() {
     if (!renderer.width || !renderer.height) return;
     const result = rasterizeText(renderer.width, renderer.height, state);
     renderer.uploadMask(result.canvas, { preserveDynamics });
+    renderer.uploadDensity(result.density.canvas);
     interaction.setBounds(result.bounds);
+    interaction.setDensity(result.density.grid);
     requestRender();
   };
   const resizeArtwork = (width, height, options = {}) => {
@@ -82,8 +84,8 @@ function startApplication() {
     previousTime = now;
     if (!state.paused) {
       const brush = interaction.next(now, state);
-      renderer.stepHeat(deltaTime, brush.from, brush.to, brush.active, state);
-      renderer.stepMelt(deltaTime, state);
+      renderer.stepHeat(deltaTime, brush, state);
+      renderer.stepGoo(deltaTime, state);
       renderer.render(state);
       renderRequested = false;
     } else if (renderRequested) {
@@ -105,15 +107,22 @@ const SLIDER_GROUPS = {
     ['brushSize', 'Brush size', 0.005, 0.25, 0.0025, 'percent'],
     ['brushEdgeBlur', 'Brush edge blur', 0, 1, 0.01, 'percent'],
     ['heatStrength', 'Heat strength', 0.2, 1.5, 0.01, 'decimal'],
+    ['heatSustain', 'Heat sustain', 0, 3, 0.05, 'decimal'],
     ['trail', 'Trail length', 0, 0.95, 0.01, 'percent'],
+    ['gooRise', 'Goo rise', 0.05, 4, 0.05, 'decimal'],
+    ['gooDwell', 'Goo dwell', 0.2, 8, 0.1, 'decimal'],
     ['autoSpeed', 'Auto speed', 0.2, 2.5, 0.01, 'decimal'],
     ['wobble', 'Vertical wobble', 0, 1, 0.01, 'percent']
   ],
   effectSliders: [
     ['contourWidth', 'Contour width', 0, 1, 0.01, 'percent'],
     ['glowRadius', 'Glow radius', 0, 1, 0.01, 'percent'],
-    ['meltAmount', 'Text melt', 0, 0.24, 0.001, 'percent'],
-    ['meltFlow', 'Melt response', 0, 1, 0.01, 'percent'],
+    ['gooAmount', 'Goo amount', 0, 1, 0.01, 'percent'],
+    ['gooSpread', 'Goo spread', 0, 1, 0.01, 'percent'],
+    ['gooViscosity', 'Goo viscosity', 0, 1, 0.01, 'percent'],
+    ['gooThreshold', 'Goo threshold', 0.3, 0.62, 0.005, 'decimal'],
+    ['gooDissolve', 'Goo dissolve', 0, 1, 0.01, 'percent'],
+    ['densityBias', 'Density bias', 0, 1, 0.01, 'percent'],
     ['coreColorization', 'Core colorization', 0, 1, 0.01, 'percent'],
     ['effectIntensity', 'Effect intensity', 0.4, 1.8, 0.01, 'decimal']
   ],
@@ -297,8 +306,10 @@ function syncPalette() {
     button.classList.toggle('active', button.dataset.palette === state.paletteName));
 }
 
+const MODE_LABELS = { manual: 'MANUAL BRUSH', auto: 'AUTO SCAN', edge: 'AUTO EDGE' };
+
 function updateModeHud() {
-  const label = state.paused ? 'PAUSED' : state.mode === 'auto' ? 'AUTO SCAN' : 'MANUAL BRUSH';
+  const label = state.paused ? 'PAUSED' : MODE_LABELS[state.mode] || MODE_LABELS.manual;
   document.querySelector('#modeHud').textContent = label;
 }
 

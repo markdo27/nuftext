@@ -1,15 +1,23 @@
 # NUFTEXT
 
-An interactive thermal typography tool for the browser. Move across the type to liquify its silhouette and raise a multi-band colour halo, or let the automatic scan animate it for you.
+An interactive thermal typography tool for the browser. Move across the type to melt its silhouette into gooey blobs and raise a multi-band colour halo, or let the automatic scan animate it for you.
 
 **Live:** https://markdo27.github.io/nuftext/
 
 ## What it does
 
-- Keeps unheated text crisp while the active heat brush locally erodes the ink into downward molten runs.
+- Keeps unheated text pixel-for-pixel crisp while the letters under the brush swell, fuse with their neighbours and neck apart like liquid.
 - Uses a persistent WebGL heat field, so motion leaves a soft trail that fades naturally.
 - Adds independent brush size and edge-blur controls for hard spotlights or broad feathered heat.
-- Adapts Burnt-Noise's persistent mass/heat simulation so the source text loses material, drips away with its halo, then reforms slowly after cooling.
+- Borrows the gooey trick from Codrops' Gooey Text Hover Effect — Gaussian blur followed by a hard alpha threshold — but drives the blur *locally* from the heat field instead of one global value, so only the heated letters turn to goo.
+- Runs the heat through a viscous goo field with lateral surface tension, so blobs lag behind the pointer and merge with each other.
+- Heat sustain keeps feeding the brush for a moment after the pointer leaves, so a quick hover still develops into a full blob instead of stopping dead.
+- Goo rise and goo dwell are the two halves of an envelope measured in seconds: the letters swell gradually rather than snapping, hold, then settle back to crisp type.
+- The ink stays its own colour and the palette renders as a contour halo hugging each letterform, so heated type reads as gooey letters rather than a blob of colour.
+- Goo amount, spread, viscosity and threshold take the type from softly swollen, through merged metaballs, to shredded droplets.
+- Goo dissolve fades the coverage before the threshold, the way the Codrops demo animates opacity: at `0` the heated letters only swell and fuse, and as it rises they neck, break into droplets and melt away entirely before reforming. The halo fades with the material it belongs to, so no flat disc of colour is left behind.
+- Builds a gradient map by downscaling the mask, then uses it twice: heavier ink goos harder (density bias), and the Auto edge scan hops between dense letter clusters near the outside of the block, widening the brush on the heaviest ones.
+- Three interaction modes: Manual brush, Auto sweep across the block, and Auto edge. Both automatic modes are pure functions of time, so the GIF export replays exactly what the canvas showed.
 - Includes three reference-driven palettes: Acid Outline, Magenta Heat and Cyan Pink.
 - Supports multiline text, six Google Fonts and local `.ttf`, `.otf`, `.woff` or `.woff2` uploads.
 - Exports the current frame as PNG, live interaction as WebM and a deterministic Auto loop as GIF.
@@ -18,12 +26,14 @@ An interactive thermal typography tool for the browser. Move across the type to 
 
 ```text
 Canvas text mask
-  → pointer / Auto heat feedback texture
-  → local mass + temperature melt simulation
-  → dynamically deformed source mask
+  → downscaled density map (gradient map)
+  → pointer / Auto / Auto edge heat feedback texture
+  → viscous goo field (lateral diffusion + linear dwell settle)
+  → blurred mask levels blended by local goo strength × density
+  → alpha threshold → gooey metaball silhouette
   → three relative-radius blur fields
   → palette-mapped contour halo
-  → deformed ink + optional heated core
+  → gooey ink + optional heated core
   → print grain and colour misregistration
 ```
 
@@ -51,7 +61,7 @@ A current browser with WebGL and ES modules is required. WebM export depends on 
 
 ## Credits
 
-The visual direction is based on supplied print and motion references. The browser GIF encoder is adapted from the earlier [Burnt-Noise](https://github.com/markdo27/Burnt-Noise) project.
+The visual direction is based on supplied print and motion references. The gooey silhouette adapts the blur-plus-alpha-threshold technique from Codrops' [Gooey Text Hover Effect](https://github.com/codrops/GooeyTextHoverEffect) (MIT). The browser GIF encoder is adapted from the earlier [Burnt-Noise](https://github.com/markdo27/Burnt-Noise) project.
 
 ## Licence
 

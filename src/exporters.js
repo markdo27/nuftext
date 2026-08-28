@@ -1,4 +1,5 @@
 import { autoBrushAt } from './math.js';
+import { edgeBrush } from './auto-edge.js';
 import { buildPalette, createPaletteMapper, encodeGif, indexFrame, sampleFrame } from './gif.js';
 
 const nextTick = (() => {
@@ -153,19 +154,38 @@ export class ExportController {
     }
   }
 
+  brushSampler() {
+    const { bounds, edgeTargets } = this.interaction;
+    if (this.state.mode === 'edge' && edgeTargets.cells.length) {
+      return time => edgeBrush(time, edgeTargets, this.state);
+    }
+    return time => ({
+      ...autoBrushAt(time, bounds, this.state.autoSpeed, this.state.wobble),
+      step: 0,
+      radius: this.state.brushSize
+    });
+  }
+
   async renderGifPass(frameCount, deltaTime, consumeFrame, startProgress, endProgress) {
     const scratch = document.createElement('canvas');
     scratch.width = this.renderer.width;
     scratch.height = this.renderer.height;
     const context = scratch.getContext('2d', { willReadFrequently: true });
     this.renderer.clearDynamics();
-    let previous = autoBrushAt(0, this.interaction.bounds, this.state.autoSpeed, this.state.wobble);
+    const sampleBrush = this.brushSampler();
+    let previous = null;
 
     for (let frame = 0; frame < frameCount; frame += 1) {
       const time = frame * deltaTime;
-      const current = autoBrushAt(time, this.interaction.bounds, this.state.autoSpeed, this.state.wobble);
-      this.renderer.stepHeat(deltaTime, previous, current, true, this.state);
-      this.renderer.stepMelt(deltaTime, this.state);
+      const current = sampleBrush(time);
+      const continuous = previous !== null && previous.step === current.step;
+      this.renderer.stepHeat(deltaTime, {
+        from: continuous ? previous : current,
+        to: current,
+        active: 1,
+        radius: current.radius
+      }, this.state);
+      this.renderer.stepGoo(deltaTime, this.state);
       this.renderer.render(this.state);
       context.drawImage(this.renderer.canvas, 0, 0);
       consumeFrame(context.getImageData(0, 0, scratch.width, scratch.height).data);
