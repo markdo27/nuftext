@@ -1,8 +1,25 @@
 import { FONT_OPTIONS } from './state.js';
 import { clamp } from './math.js';
+import { densityFromPixels, densityGridSize } from './density.js';
 
 const maskCanvas = document.createElement('canvas');
 const context = maskCanvas.getContext('2d', { alpha: true });
+const densityCanvas = document.createElement('canvas');
+const densityContext = densityCanvas.getContext('2d', { alpha: true, willReadFrequently: true });
+
+// Downscaling the finished mask is the cheapest possible box filter, and the
+// result doubles as the gradient map: bright cells are heavy clusters of ink.
+function buildDensity(width, height) {
+  const { columns, rows } = densityGridSize(width, height);
+  densityCanvas.width = columns;
+  densityCanvas.height = rows;
+  densityContext.clearRect(0, 0, columns, rows);
+  densityContext.imageSmoothingEnabled = true;
+  densityContext.imageSmoothingQuality = 'high';
+  densityContext.drawImage(maskCanvas, 0, 0, columns, rows);
+  const pixels = densityContext.getImageData(0, 0, columns, rows).data;
+  return { canvas: densityCanvas, grid: densityFromPixels(pixels, columns, rows) };
+}
 
 function fontStack(state) {
   return state.customFont ? `"${state.customFont}", sans-serif` : FONT_OPTIONS[state.font];
@@ -118,7 +135,7 @@ export function rasterizeText(width, height, state) {
     bottom: clamp((top + blockHeight) / height + 0.05)
   } : { left: 0.15, right: 0.85, top: 0.3, bottom: 0.7 };
 
-  return { canvas: maskCanvas, bounds, fontSize: size };
+  return { canvas: maskCanvas, bounds, fontSize: size, density: buildDensity(width, height) };
 }
 
 export async function loadCustomFont(file) {

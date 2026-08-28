@@ -1,4 +1,4 @@
-import { hexToRgb } from './math.js';
+import { clamp, hexToRgb } from './math.js';
 
 const VERTEX_SHADER = `
 attribute vec2 aPosition;
@@ -43,6 +43,7 @@ uniform vec2 uFrom;
 uniform vec2 uTo;
 uniform float uAspect;
 uniform float uDecay;
+uniform float uDrain;
 uniform float uRadius;
 uniform float uEdgeBlur;
 uniform float uStrength;
@@ -61,7 +62,7 @@ void main(){
                    + texture2D(uPrevious, vUv - vec2(uTexel.x, 0.0)).r
                    + texture2D(uPrevious, vUv + vec2(0.0, uTexel.y)).r
                    + texture2D(uPrevious, vUv - vec2(0.0, uTexel.y)).r;
-  previous = mix(previous, neighbours * 0.25, 0.035) * uDecay;
+  previous = max(mix(previous, neighbours * 0.25, 0.035) * uDecay - uDrain, 0.0);
   vec2 point = vec2(vUv.x * uAspect, vUv.y);
   vec2 start = vec2(uFrom.x * uAspect, uFrom.y);
   vec2 end = vec2(uTo.x * uAspect, uTo.y);
@@ -75,137 +76,79 @@ void main(){
   gl_FragColor = vec4(heat, heat, heat, 1.0);
 }`;
 
-const MELT_SHADER = `
+const GOO_FIELD_SHADER = `
 precision highp float;
 varying vec2 vUv;
 uniform sampler2D uPrevious;
-uniform sampler2D uMask;
 uniform sampler2D uHeat;
 uniform vec2 uTexel;
 uniform float uDt;
-uniform float uFlow;
-uniform float uAmount;
-uniform float uReset;
+uniform float uRise;
+uniform float uFall;
+uniform float uViscosity;
+uniform float uSeed;
 
-float hash11(float value){
-  return fract(sin(value * 127.1) * 43758.5453123);
+const float TENSION_LOW = 0.2;
+const float TENSION_HIGH = 2.4;
+const float GOO_FLOOR = 0.012;
+
+float hash21(vec2 point){
+  point = fract(point * vec2(123.34, 456.21));
+  point += dot(point, point + 45.32);
+  return fract(point.x * point.y);
 }
 
 void main(){
-  float coverage = texture2D(uMask, vUv).a;
-  if(uReset > 0.5){
-    gl_FragColor = vec4(0.0, 0.0, coverage, 0.0);
-    return;
-  }
+  float previous = texture2D(uPrevious, vUv).r;
+  float neighbours = (texture2D(uPrevious, vUv + vec2(uTexel.x, 0.0)).r
+                    + texture2D(uPrevious, vUv - vec2(uTexel.x, 0.0)).r
+                    + texture2D(uPrevious, vUv + vec2(0.0, uTexel.y)).r
+                    + texture2D(uPrevious, vUv - vec2(0.0, uTexel.y)).r) * 0.25;
+  float tension = clamp(uDt * mix(TENSION_LOW, TENSION_HIGH, uViscosity), 0.0, 0.5);
+  float current = mix(previous, neighbours, tension);
 
-  vec4 state = texture2D(uPrevious, vUv);
-  vec2 vertical = vec2(0.0, uTexel.y);
-  vec2 horizontal = vec2(uTexel.x, 0.0);
-  vec4 above = texture2D(uPrevious, vUv + vertical);
-  vec4 below = texture2D(uPrevious, vUv - vertical);
-  vec4 left = texture2D(uPrevious, vUv - horizontal);
-  vec4 right = texture2D(uPrevious, vUv + horizontal);
-
-  float displacement = state.r;
-  float velocity = state.g;
-  float mass = state.b;
-  float temperature = state.a;
-  float brushHeat = texture2D(uHeat, vUv).r;
-  float material = max(coverage, mass);
-
-  float neighbourHeat = (above.a + below.a + left.a + right.a) * 0.25;
-  temperature = mix(temperature, neighbourHeat, clamp(uDt * 2.2, 0.0, 0.18));
-  temperature = max(temperature * exp(-uDt * 1.25), brushHeat * smoothstep(0.005, 0.16, material));
-  float fallingHeat = above.a * smoothstep(0.01, 0.20, above.b) * 0.985;
-  temperature = max(temperature, fallingHeat);
-
-  float meltStrength = smoothstep(0.0, 0.16, uAmount);
-  float yielded = smoothstep(0.14, 0.58, temperature) * uFlow * meltStrength;
-  float column = floor(vUv.x / max(uTexel.x * 2.0, 0.0001));
-  float columnFlow = hash11(column);
-  float rivulet = 0.12 + columnFlow * columnFlow * 1.95;
-  float supply = smoothstep(0.01, 0.22, mass);
-  velocity += yielded * supply * rivulet * uDt * 1.75;
-  velocity *= exp(-uDt * mix(6.5, 1.2, uFlow));
-  velocity = clamp(velocity, 0.0, 1.0);
-
-  float fluxIn = above.b * above.g;
-  float fluxOut = mass * velocity;
-  mass += (fluxIn - fluxOut) * mix(0.8, 4.8, uFlow) * uDt;
-  float sideMass = (left.b + right.b) * 0.5;
-  mass = mix(mass, sideMass, clamp(uDt * mix(0.12, 0.42, uFlow), 0.0, 0.08));
-  float coolSolid = (1.0 - yielded) * (1.0 - smoothstep(0.08, 0.55, brushHeat));
-  float recoveryRate = mix(0.8, 0.15, uFlow) * coolSolid + (1.0 - meltStrength) * 5.0;
-  mass = mix(mass, coverage, clamp(uDt * recoveryRate, 0.0, 0.22));
-  mass *= 1.0 - uDt * 0.48 * (1.0 - smoothstep(0.0, 0.02, coverage));
-  mass = clamp(mass, 0.0, 1.0);
-
-  float replacement = clamp(fluxOut * uDt * 8.0, 0.0, 1.0);
-  displacement = mix(displacement, above.r, replacement);
-  displacement += velocity * uDt;
-  displacement *= exp(-uDt * mix(4.0, 0.72, yielded));
-
-  float neighbours = (left.r + right.r + above.r + below.r) * 0.25;
-  displacement = mix(displacement, neighbours, clamp(uDt * 14.0, 0.0, 0.42));
-  gl_FragColor = vec4(clamp(displacement, 0.0, 1.0), velocity, mass, clamp(temperature, 0.0, 1.0));
+  float target = texture2D(uHeat, vUv).r;
+  float risen = min(target, current + uDt * uRise);
+  float settled = max(target, current - uDt * uFall);
+  current = target > current ? risen : settled;
+  current += (hash21(gl_FragCoord.xy + uSeed) - 0.5) / 255.0;
+  current *= step(GOO_FLOOR, max(current, target));
+  gl_FragColor = vec4(clamp(current, 0.0, 1.0), 0.0, 0.0, 1.0);
 }`;
 
-const DEFORM_SHADER = `
+const GOO_SHADER = `
 precision highp float;
 varying vec2 vUv;
 uniform sampler2D uMask;
-uniform sampler2D uHeat;
-uniform sampler2D uMelt;
-uniform vec2 uMeltTexel;
+uniform sampler2D uNear;
+uniform sampler2D uFar;
+uniform sampler2D uGoo;
+uniform sampler2D uDensity;
+uniform vec2 uTexel;
 uniform float uAmount;
+uniform float uSharpness;
+uniform float uThreshold;
+uniform float uDissolve;
+uniform float uDensityBias;
 
-float hash11(float value){
-  return fract(sin(value * 127.1) * 43758.5453123);
-}
-
-float smoothMass(vec2 uv){
-  float center = texture2D(uMelt, uv).b * 0.40;
-  float left = texture2D(uMelt, uv - vec2(uMeltTexel.x, 0.0)).b * 0.15;
-  float right = texture2D(uMelt, uv + vec2(uMeltTexel.x, 0.0)).b * 0.15;
-  float above = texture2D(uMelt, uv + vec2(0.0, uMeltTexel.y)).b * 0.15;
-  float below = texture2D(uMelt, uv - vec2(0.0, uMeltTexel.y)).b * 0.15;
-  return center + left + right + above + below;
-}
-
-float smoothNoise(float position){
-  float cell = floor(position);
-  float blend = smoothstep(0.0, 1.0, fract(position));
-  return mix(hash11(cell), hash11(cell + 1.0), blend);
-}
+const float SAG = 2.5;
+const float DENSITY_FULL = 0.55;
 
 void main(){
-  vec4 melt = texture2D(uMelt, vUv);
-  float left = texture2D(uMelt, vUv - vec2(uMeltTexel.x * 2.0, 0.0)).r;
-  float right = texture2D(uMelt, vUv + vec2(uMeltTexel.x * 2.0, 0.0)).r;
-  float displacement = min((melt.r * 2.0 + left + right) * 0.25, 0.65);
-  float heat = max(texture2D(uHeat, vUv).r, melt.a);
-  float original = texture2D(uMask, vUv).a;
-  vec2 nearUv = vUv + vec2(0.0, uMeltTexel.y * 6.0);
-  vec2 midUv = vUv + vec2(0.0, uMeltTexel.y * 14.0);
-  vec2 farUv = vUv + vec2(0.0, uMeltTexel.y * 24.0);
-  vec4 tailNear = texture2D(uMelt, nearUv);
-  vec4 tailMid = texture2D(uMelt, midUv);
-  vec4 tailFar = texture2D(uMelt, farUv);
-  float nearRun = smoothMass(nearUv) * smoothstep(0.06, 0.42, max(tailNear.a, tailNear.g));
-  float midRun = smoothMass(midUv) * smoothstep(0.08, 0.48, max(tailMid.a, tailMid.g)) * 0.78;
-  float farRun = smoothMass(farUv) * smoothstep(0.10, 0.52, max(tailFar.a, tailFar.g)) * 0.54;
-  float strandPosition = vUv.x / max(uMeltTexel.x * 3.0, 0.0001);
-  float strand = mix(0.10, 1.0, smoothstep(0.30, 0.88, smoothNoise(strandPosition)));
-  float tailMass = max(nearRun, max(midRun, farRun)) * strand;
-  float localMass = smoothMass(vUv);
-  float missingMaterial = max(original - localMass, 0.0);
-  float escapedMaterial = max(localMass, tailMass) * (1.0 - original);
-  float motion = max(heat, max(melt.g, max(displacement * 1.5, escapedMaterial)));
-  float strength = smoothstep(0.0, 0.16, uAmount);
-  float activity = smoothstep(0.015, 0.34, max(motion, missingMaterial)) * strength;
-  float fluidShape = smoothstep(0.008, 0.62, max(localMass, tailMass));
-  float mask = mix(original, fluidShape, activity);
-  gl_FragColor = vec4(mask, mask, mask, mask);
+  float density = smoothstep(0.0, DENSITY_FULL, texture2D(uDensity, vUv).a);
+  float weight = mix(1.0, density, uDensityBias);
+  float strength = clamp(texture2D(uGoo, vUv).r * uAmount * weight, 0.0, 1.0);
+  vec2 sag = vec2(0.0, uTexel.y * SAG * strength);
+  float crisp = texture2D(uMask, vUv).a;
+  float near = texture2D(uNear, vUv + sag).a;
+  float far = texture2D(uFar, vUv + sag * 2.0).a;
+  float level = strength * 2.0;
+  float blurred = level < 1.0 ? mix(crisp, near, level) : mix(near, far, level - 1.0);
+  float sharpness = mix(1.0, uSharpness, strength);
+  float threshold = uThreshold * strength;
+  float fade = 1.0 - uDissolve * strength;
+  float shape = clamp((blurred * fade - threshold) * sharpness, 0.0, 1.0);
+  gl_FragColor = vec4(fade, 0.0, 0.0, shape);
 }`;
 
 const COMPOSITE_SHADER = `
@@ -216,7 +159,7 @@ uniform sampler2D uSmall;
 uniform sampler2D uMedium;
 uniform sampler2D uLarge;
 uniform sampler2D uHeat;
-uniform sampler2D uMelt;
+uniform sampler2D uGoo;
 uniform vec3 uBackground;
 uniform vec3 uPaperTint;
 uniform vec3 uTextColor;
@@ -250,17 +193,19 @@ vec3 overlay(vec3 base, vec3 blend){
 }
 
 void main(){
-  float mask = texture2D(uMask, vUv).a;
+  vec4 inkSample = texture2D(uMask, vUv);
+  float mask = inkSample.a;
+  float materialFade = inkSample.r;
   float smallField = texture2D(uSmall, vUv).a;
   float mediumField = texture2D(uMedium, vUv).a;
   float largeField = texture2D(uLarge, vUv).a;
-  vec4 melt = texture2D(uMelt, vUv);
-  float heat = max(texture2D(uHeat, vUv).r, max(melt.a, melt.r * 0.8));
+  float goo = texture2D(uGoo, vUv).r;
+  float heat = max(texture2D(uHeat, vUv).r, goo);
   float heatGate = smoothstep(0.025, 0.35, heat);
 
   float profile = max(smallField, max(mediumField * 0.88, largeField * 0.58));
   float palettePosition = clamp(pow(profile, 0.72) * uIntensity, 0.0, 1.0);
-  float haloCoverage = smoothstep(0.008, 0.12, profile) * heatGate;
+  float haloCoverage = smoothstep(0.01, 0.30, profile) * heatGate * materialFade;
 
   float paperNoise = hash21(floor(gl_FragCoord.xy / 17.0));
   vec3 colour = mix(uBackground, uPaperTint, 0.08 + paperNoise * 0.04);
@@ -280,6 +225,13 @@ void main(){
   colour = mix(colour, overlay(colour, vec3(fine)), uGrain);
   gl_FragColor = vec4(clamp(colour, 0.0, 1.0), 1.0);
 }`;
+
+const FIELD_DRAIN = 0.09;
+const MIN_ENVELOPE = 0.05;
+const GOO_SHARPNESS = 14;
+const GOO_NEAR_RADIUS = [1.0, 3.0];
+const GOO_FAR_RADIUS = [2.0, 7.0];
+const blurRadius = ([base, extra], spread) => base + extra * spread;
 
 function compileShader(gl, type, source) {
   const shader = gl.createShader(type);
@@ -338,23 +290,28 @@ export class ThermalRenderer {
     this.copyProgram = createProgram(this.gl, COPY_SHADER);
     this.blurProgram = createProgram(this.gl, BLUR_SHADER);
     this.heatProgram = createProgram(this.gl, HEAT_SHADER);
-    this.meltProgram = createProgram(this.gl, MELT_SHADER);
-    this.deformProgram = createProgram(this.gl, DEFORM_SHADER);
+    this.gooFieldProgram = createProgram(this.gl, GOO_FIELD_SHADER);
+    this.gooProgram = createProgram(this.gl, GOO_SHADER);
     this.compositeProgram = createProgram(this.gl, COMPOSITE_SHADER);
     this.maskTexture = createTexture(this.gl);
-    this.deformedMask = createRenderTarget(this.gl);
+    this.densityTexture = createTexture(this.gl);
+    this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, 1, 1, 0, this.gl.RGBA,
+      this.gl.UNSIGNED_BYTE, new Uint8Array([255, 255, 255, 255]));
+    this.gooMask = createRenderTarget(this.gl);
+    this.gooNear = [createRenderTarget(this.gl), createRenderTarget(this.gl)];
+    this.gooFar = [createRenderTarget(this.gl), createRenderTarget(this.gl)];
     this.small = [createRenderTarget(this.gl), createRenderTarget(this.gl)];
     this.medium = [createRenderTarget(this.gl), createRenderTarget(this.gl)];
     this.large = [createRenderTarget(this.gl), createRenderTarget(this.gl)];
     this.heat = [createRenderTarget(this.gl), createRenderTarget(this.gl)];
-    this.melt = [createRenderTarget(this.gl), createRenderTarget(this.gl)];
+    this.goo = [createRenderTarget(this.gl), createRenderTarget(this.gl)];
     this.heatIndex = 0;
-    this.meltIndex = 0;
-    this.meltReady = false;
+    this.gooIndex = 0;
     this.maskReady = false;
     this.maskRevision = 0;
     this.dynamicRevision = 0;
     this.fieldSignature = '';
+    this.gooSignature = '';
     this.frame = 0;
     this.setupQuad();
   }
@@ -401,8 +358,10 @@ export class ThermalRenderer {
     this.height = height;
     this.canvas.width = width;
     this.canvas.height = height;
-    resizeRenderTarget(this.gl, this.deformedMask, width, height);
+    resizeRenderTarget(this.gl, this.gooMask, width, height);
     const sizes = [
+      [this.gooNear, Math.ceil(width / 2), Math.ceil(height / 2)],
+      [this.gooFar, Math.ceil(width / 4), Math.ceil(height / 4)],
       [this.small, Math.ceil(width / 2), Math.ceil(height / 2)],
       [this.medium, Math.ceil(width / 4), Math.ceil(height / 4)],
       [this.large, Math.ceil(width / 8), Math.ceil(height / 8)]
@@ -411,6 +370,7 @@ export class ThermalRenderer {
       resizeRenderTarget(this.gl, target, Math.max(2, targetWidth), Math.max(2, targetHeight))));
     this.resizeHeat(width / height);
     this.fieldSignature = '';
+    this.gooSignature = '';
   }
 
   resizeHeat(aspect) {
@@ -418,7 +378,7 @@ export class ThermalRenderer {
     const width = Math.max(2, Math.round(height * aspect));
     if (this.heat[0].width === width && this.heat[0].height === height) return;
     this.heat.forEach(target => resizeRenderTarget(this.gl, target, width, height));
-    this.melt.forEach(target => resizeRenderTarget(this.gl, target, width, height));
+    this.goo.forEach(target => resizeRenderTarget(this.gl, target, width, height));
     this.clearDynamics();
   }
 
@@ -431,7 +391,17 @@ export class ThermalRenderer {
     this.maskReady = true;
     this.maskRevision += 1;
     this.fieldSignature = '';
-    if (!preserveDynamics) this.resetMelt();
+    this.gooSignature = '';
+    if (!preserveDynamics) this.resetGoo();
+  }
+
+  uploadDensity(sourceCanvas) {
+    const gl = this.gl;
+    gl.bindTexture(gl.TEXTURE_2D, this.densityTexture);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, sourceCanvas);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    this.fieldSignature = '';
   }
 
   clearTarget(target) {
@@ -449,28 +419,14 @@ export class ThermalRenderer {
   clearDynamics() {
     this.heat.forEach(target => this.clearTarget(target));
     this.heatIndex = 0;
-    this.resetMelt();
+    this.resetGoo();
     this.dynamicRevision += 1;
     this.fieldSignature = '';
   }
 
-  resetMelt() {
-    this.meltIndex = 0;
-    this.meltReady = false;
-    if (!this.maskReady || !this.melt[0].width) {
-      this.melt.forEach(target => target.width && this.clearTarget(target));
-      return;
-    }
-    const gl = this.gl;
-    this.use(this.meltProgram);
-    gl.uniform1f(this.uniform(this.meltProgram, 'uReset'), 1);
-    this.melt.forEach((target, index) => {
-      this.bindTexture(this.meltProgram, 'uPrevious', this.melt[1 - index].texture, 0);
-      this.bindTexture(this.meltProgram, 'uMask', this.maskTexture, 1);
-      this.bindTexture(this.meltProgram, 'uHeat', this.heat[this.heatIndex].texture, 2);
-      this.draw(this.meltProgram, target);
-    });
-    this.meltReady = true;
+  resetGoo() {
+    this.gooIndex = 0;
+    this.goo.forEach(target => target.width && this.clearTarget(target));
   }
 
   copyTo(source, target) {
@@ -496,19 +452,30 @@ export class ThermalRenderer {
     }
   }
 
+  rebuildGooBlurs(state) {
+    const signature = `${this.maskRevision}:${this.width}:${state.gooSpread}`;
+    if (signature === this.gooSignature) return;
+    this.copyTo(this.maskTexture, this.gooNear[0]);
+    this.blurPair(this.gooNear, blurRadius(GOO_NEAR_RADIUS, state.gooSpread));
+    this.copyTo(this.maskTexture, this.gooFar[0]);
+    this.blurPair(this.gooFar, blurRadius(GOO_FAR_RADIUS, state.gooSpread));
+    this.gooSignature = signature;
+  }
+
   rebuildFields(state) {
-    const signature = `${this.maskRevision}:${this.dynamicRevision}:${this.width}:${state.meltAmount}:${state.contourWidth}:${state.glowRadius}`;
+    const goo = `${state.gooAmount}:${state.gooSpread}:${state.gooThreshold}:${state.gooDissolve}:${state.densityBias}`;
+    const signature = `${this.maskRevision}:${this.dynamicRevision}:${this.width}:${goo}:${state.contourWidth}:${state.glowRadius}`;
     if (signature === this.fieldSignature) return;
-    this.copyTo(this.deformedMask.texture, this.small[0]);
+    this.copyTo(this.gooMask.texture, this.small[0]);
     this.blurPair(this.small, 0.7 + state.contourWidth * 4.5);
-    this.copyTo(this.deformedMask.texture, this.medium[0]);
+    this.copyTo(this.gooMask.texture, this.medium[0]);
     this.blurPair(this.medium, 1.4 + state.contourWidth * 6.5);
-    this.copyTo(this.deformedMask.texture, this.large[0]);
+    this.copyTo(this.gooMask.texture, this.large[0]);
     this.blurPair(this.large, 2.0 + state.glowRadius * 10.0);
     this.fieldSignature = signature;
   }
 
-  stepHeat(deltaTime, from, to, active, state) {
+  stepHeat(deltaTime, brush, state) {
     const gl = this.gl;
     const source = this.heat[this.heatIndex];
     const target = this.heat[1 - this.heatIndex];
@@ -517,64 +484,71 @@ export class ThermalRenderer {
     this.use(this.heatProgram);
     this.bindTexture(this.heatProgram, 'uPrevious', source.texture, 0);
     gl.uniform2f(this.uniform(this.heatProgram, 'uTexel'), 1 / source.width, 1 / source.height);
-    gl.uniform2f(this.uniform(this.heatProgram, 'uFrom'), from.x, 1 - from.y);
-    gl.uniform2f(this.uniform(this.heatProgram, 'uTo'), to.x, 1 - to.y);
+    gl.uniform2f(this.uniform(this.heatProgram, 'uFrom'), brush.from.x, 1 - brush.from.y);
+    gl.uniform2f(this.uniform(this.heatProgram, 'uTo'), brush.to.x, 1 - brush.to.y);
     gl.uniform1f(this.uniform(this.heatProgram, 'uAspect'), this.width / this.height);
     gl.uniform1f(this.uniform(this.heatProgram, 'uDecay'), decay);
-    gl.uniform1f(this.uniform(this.heatProgram, 'uRadius'), state.brushSize);
+    gl.uniform1f(this.uniform(this.heatProgram, 'uDrain'), deltaTime * FIELD_DRAIN);
+    gl.uniform1f(this.uniform(this.heatProgram, 'uRadius'), brush.radius ?? state.brushSize);
     gl.uniform1f(this.uniform(this.heatProgram, 'uEdgeBlur'), state.brushEdgeBlur);
     gl.uniform1f(this.uniform(this.heatProgram, 'uStrength'), state.heatStrength);
-    gl.uniform1f(this.uniform(this.heatProgram, 'uActive'), active ? 1 : 0);
+    gl.uniform1f(this.uniform(this.heatProgram, 'uActive'), clamp(Number(brush.active)));
     this.draw(this.heatProgram, target);
     this.heatIndex = 1 - this.heatIndex;
   }
 
-  stepMelt(deltaTime, state) {
-    if (!this.meltReady) this.resetMelt();
-    if (!this.meltReady) return;
+  stepGoo(deltaTime, state) {
+    if (!this.goo[0].width) return;
     const gl = this.gl;
-    const source = this.melt[this.meltIndex];
-    const target = this.melt[1 - this.meltIndex];
-    const program = this.meltProgram;
+    const source = this.goo[this.gooIndex];
+    const target = this.goo[1 - this.gooIndex];
+    const program = this.gooFieldProgram;
     this.use(program);
     this.bindTexture(program, 'uPrevious', source.texture, 0);
-    this.bindTexture(program, 'uMask', this.maskTexture, 1);
-    this.bindTexture(program, 'uHeat', this.heat[this.heatIndex].texture, 2);
+    this.bindTexture(program, 'uHeat', this.heat[this.heatIndex].texture, 1);
     gl.uniform2f(this.uniform(program, 'uTexel'), 1 / source.width, 1 / source.height);
-    gl.uniform1f(this.uniform(program, 'uDt'), Math.min(deltaTime, 1 / 30));
-    gl.uniform1f(this.uniform(program, 'uFlow'), state.meltFlow);
-    gl.uniform1f(this.uniform(program, 'uAmount'), state.meltAmount);
-    gl.uniform1f(this.uniform(program, 'uReset'), 0);
+    const step = Math.min(deltaTime, 1 / 30);
+    gl.uniform1f(this.uniform(program, 'uDt'), step);
+    gl.uniform1f(this.uniform(program, 'uRise'), 1 / Math.max(state.gooRise, MIN_ENVELOPE));
+    gl.uniform1f(this.uniform(program, 'uFall'), 1 / Math.max(state.gooDwell, MIN_ENVELOPE));
+    gl.uniform1f(this.uniform(program, 'uSeed'), this.frame % 1024);
+    gl.uniform1f(this.uniform(program, 'uViscosity'), state.gooViscosity);
     this.draw(program, target);
-    this.meltIndex = 1 - this.meltIndex;
+    this.gooIndex = 1 - this.gooIndex;
     this.dynamicRevision += 1;
   }
 
-  renderDeformedMask(state) {
+  renderGooMask(state) {
     const gl = this.gl;
-    const program = this.deformProgram;
-    const melt = this.melt[this.meltIndex];
+    const program = this.gooProgram;
     this.use(program);
     this.bindTexture(program, 'uMask', this.maskTexture, 0);
-    this.bindTexture(program, 'uHeat', this.heat[this.heatIndex].texture, 1);
-    this.bindTexture(program, 'uMelt', melt.texture, 2);
-    gl.uniform2f(this.uniform(program, 'uMeltTexel'), 1 / melt.width, 1 / melt.height);
-    gl.uniform1f(this.uniform(program, 'uAmount'), state.meltAmount);
-    this.draw(program, this.deformedMask);
+    this.bindTexture(program, 'uNear', this.gooNear[0].texture, 1);
+    this.bindTexture(program, 'uFar', this.gooFar[0].texture, 2);
+    this.bindTexture(program, 'uGoo', this.goo[this.gooIndex].texture, 3);
+    this.bindTexture(program, 'uDensity', this.densityTexture, 4);
+    gl.uniform2f(this.uniform(program, 'uTexel'), 1 / this.width, 1 / this.height);
+    gl.uniform1f(this.uniform(program, 'uAmount'), state.gooAmount);
+    gl.uniform1f(this.uniform(program, 'uDensityBias'), state.densityBias);
+    gl.uniform1f(this.uniform(program, 'uSharpness'), GOO_SHARPNESS);
+    gl.uniform1f(this.uniform(program, 'uThreshold'), state.gooThreshold);
+    gl.uniform1f(this.uniform(program, 'uDissolve'), state.gooDissolve);
+    this.draw(program, this.gooMask);
   }
 
   render(state) {
-    this.renderDeformedMask(state);
+    this.rebuildGooBlurs(state);
+    this.renderGooMask(state);
     this.rebuildFields(state);
     const gl = this.gl;
     const program = this.compositeProgram;
     this.use(program);
-    this.bindTexture(program, 'uMask', this.deformedMask.texture, 0);
+    this.bindTexture(program, 'uMask', this.gooMask.texture, 0);
     this.bindTexture(program, 'uSmall', this.small[0].texture, 1);
     this.bindTexture(program, 'uMedium', this.medium[0].texture, 2);
     this.bindTexture(program, 'uLarge', this.large[0].texture, 3);
     this.bindTexture(program, 'uHeat', this.heat[this.heatIndex].texture, 4);
-    this.bindTexture(program, 'uMelt', this.melt[this.meltIndex].texture, 5);
+    this.bindTexture(program, 'uGoo', this.goo[this.gooIndex].texture, 5);
     this.setColor(program, 'uBackground', state.backgroundColor);
     this.setColor(program, 'uPaperTint', state.paperTint);
     this.setColor(program, 'uTextColor', state.textColor);
@@ -613,18 +587,15 @@ export class ThermalRenderer {
   snapshotDynamics() {
     return {
       heat: this.readTarget(this.heat[this.heatIndex]),
-      melt: this.readTarget(this.melt[this.meltIndex])
+      goo: this.readTarget(this.goo[this.gooIndex])
     };
   }
 
   restoreDynamics(snapshot) {
     const heatRestored = this.heat.every(target => this.writeTarget(target, snapshot.heat));
-    const meltRestored = this.melt.every(target => this.writeTarget(target, snapshot.melt));
+    const gooRestored = this.goo.every(target => this.writeTarget(target, snapshot.goo));
     if (heatRestored) this.heatIndex = 0;
-    if (meltRestored) {
-      this.meltIndex = 0;
-      this.meltReady = true;
-    }
+    if (gooRestored) this.gooIndex = 0;
     this.dynamicRevision += 1;
     this.fieldSignature = '';
   }

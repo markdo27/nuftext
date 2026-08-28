@@ -21,6 +21,7 @@
     <nav class="mode-switch" aria-label="Interaction mode">
       <button data-mode="manual" type="button">Manual</button>
       <button data-mode="auto" class="active" type="button">Auto</button>
+      <button data-mode="edge" type="button">Auto edge</button>
       <button id="pauseToggle" type="button">Pause</button>
     </nav>
 
@@ -51,7 +52,7 @@ designed.</textarea></label>
       <details open>
         <summary><span>02</span> Interaction</summary>
         <div class="section-body">
-          <p class="hint">Move across the artwork to raise the colour. Touch and pen work by dragging.</p>
+          <p class="hint">Move across the artwork to raise the colour. Touch and pen work by dragging. Heat sustain keeps feeding the goo after the pointer leaves; goo rise and goo dwell set how slowly the letters swell and settle back to crisp type. Goo dissolve decides whether heated letters merely swell or melt away completely. Auto edge ignores the sweep and hops between dense letter clusters near the outside of the block.</p>
           <div id="interactionSliders"></div>
           <button class="wide" id="clearHeat" type="button">Clear heat trail</button>
         </div>
