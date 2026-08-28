@@ -30,7 +30,7 @@ function startApplication() {
     renderer.uploadMask(result.canvas, { preserveDynamics });
     renderer.uploadDensity(result.density.canvas);
     interaction.setBounds(result.bounds);
-    interaction.setDensity(result.density.grid);
+    interaction.setLayout(result.targets);
     requestRender();
   };
   const resizeArtwork = (width, height, options = {}) => {
@@ -219,6 +219,11 @@ function bindInteractionControls(renderer, interaction, requestRender) {
     updateModeHud();
     requestRender();
   });
+  document.querySelector('#scan').addEventListener('change', event => {
+    state.scan = event.target.value;
+    interaction.resetClock();
+    requestRender();
+  });
   document.querySelector('#clearHeat').addEventListener('click', () => {
     renderer.clearHeat();
     interaction.resetClock();
@@ -281,7 +286,7 @@ function syncControls(sliderBindings) {
     binding.input.value = state[key];
     binding.updateOutput();
   });
-  ['text', 'font', 'align', 'textColor', 'backgroundColor', 'paperTint', 'aspect', 'exportHeight', 'duration']
+  ['text', 'font', 'align', 'textColor', 'backgroundColor', 'paperTint', 'scan', 'aspect', 'exportHeight', 'duration']
     .forEach(id => { document.querySelector(`#${id}`).value = state[id]; });
   document.querySelector('#uppercase').value = String(state.uppercase);
   document.querySelector('#fontStatus').textContent = 'Built-in font';
@@ -306,7 +311,7 @@ function syncPalette() {
     button.classList.toggle('active', button.dataset.palette === state.paletteName));
 }
 
-const MODE_LABELS = { manual: 'MANUAL BRUSH', auto: 'AUTO SCAN', edge: 'AUTO EDGE' };
+const MODE_LABELS = { manual: 'MANUAL BRUSH', auto: 'AUTO SCAN', words: 'WORD SCAN' };
 
 function updateModeHud() {
   const label = state.paused ? 'PAUSED' : MODE_LABELS[state.mode] || MODE_LABELS.manual;

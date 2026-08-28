@@ -24,6 +24,7 @@ export const DEFAULTS = Object.freeze({
   uppercase: true,
   textColor: '#4a4a4a',
   mode: 'auto',
+  scan: 'word',
   paused: false,
   brushSize: 0.13,
   brushEdgeBlur: 0.97,

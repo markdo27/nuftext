@@ -1,6 +1,11 @@
 export const clamp = (value, minimum = 0, maximum = 1) =>
   Math.min(maximum, Math.max(minimum, value));
 
+export const smoothstep = (edge0, edge1, value) => {
+  const position = clamp((value - edge0) / (edge1 - edge0 || 1e-6));
+  return position * position * (3 - 2 * position);
+};
+
 export const triangleWave = phase => 1 - Math.abs((phase % 2 + 2) % 2 - 1);
 
 export function hexToRgb(hex) {

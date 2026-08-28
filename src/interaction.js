@@ -1,5 +1,5 @@
 import { autoBrushAt, clamp } from './math.js';
-import { buildEdgeTargets, edgeBrush, emptyEdgeTargets } from './auto-edge.js';
+import { emptyScanTargets, scanBrush } from './word-scan.js';
 
 const IDLE_RESUME_MS = 1500;
 
@@ -15,8 +15,7 @@ export class HeatInteraction {
     this.releasedAt = 0;
     this.manualUntil = 0;
     this.autoStart = performance.now();
-    this.edgeTargets = emptyEdgeTargets();
-    this.edgeStep = -1;
+    this.scanTargets = emptyScanTargets();
     this.attachEvents();
   }
 
@@ -64,15 +63,13 @@ export class HeatInteraction {
     this.bounds = bounds;
   }
 
-  setDensity(grid) {
-    this.edgeTargets = buildEdgeTargets(grid);
-    this.edgeStep = -1;
+  setLayout(targets) {
+    this.scanTargets = targets;
   }
 
   resetClock() {
     this.autoStart = performance.now();
     this.previous = { x: this.bounds.left, y: (this.bounds.top + this.bounds.bottom) * 0.5 };
-    this.edgeStep = -1;
     this.releasedAt = 0;
   }
 
@@ -91,23 +88,19 @@ export class HeatInteraction {
   }
 
   automaticBrush(seconds, state) {
-    if (state.mode === 'edge') return this.edgeBrushAt(seconds, state);
+    if (state.mode === 'words') return this.scanBrushAt(seconds, state);
     const to = autoBrushAt(seconds, this.bounds, state.autoSpeed, state.wobble);
     const from = this.previous;
     this.previous = to;
-    this.edgeStep = -1;
     return { from, to, active: 1, radius: state.brushSize };
   }
 
-  // Each step lands somewhere new, so start the stroke where it landed rather
-  // than dragging a streak across the artwork from the previous cluster.
-  edgeBrushAt(seconds, state) {
-    const sample = edgeBrush(seconds, this.edgeTargets, state);
-    const to = { x: sample.x, y: sample.y };
-    const from = sample.step === this.edgeStep ? this.previous : to;
-    this.edgeStep = sample.step;
-    this.previous = to;
-    return { from, to, active: 1, radius: sample.radius };
+  // The capsule already spans the whole word, so there is no stroke to carry
+  // over between frames and nothing to streak when the scan moves on.
+  scanBrushAt(seconds, state) {
+    const sample = scanBrush(seconds, this.scanTargets, state);
+    this.previous = sample.to;
+    return { from: sample.from, to: sample.to, active: sample.active, radius: sample.radius };
   }
 
   // Heat keeps feeding the goo for a while after the pointer leaves, so a quick

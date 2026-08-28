@@ -1,5 +1,5 @@
 import { autoBrushAt } from './math.js';
-import { edgeBrush } from './auto-edge.js';
+import { scanBrush, scanUnits } from './word-scan.js';
 import { buildPalette, createPaletteMapper, encodeGif, indexFrame, sampleFrame } from './gif.js';
 
 const nextTick = (() => {
@@ -155,15 +155,14 @@ export class ExportController {
   }
 
   brushSampler() {
-    const { bounds, edgeTargets } = this.interaction;
-    if (this.state.mode === 'edge' && edgeTargets.cells.length) {
-      return time => edgeBrush(time, edgeTargets, this.state);
+    const { bounds, scanTargets } = this.interaction;
+    if (this.state.mode === 'words' && scanUnits(scanTargets, this.state.scan).length) {
+      return time => ({ ...scanBrush(time, scanTargets, this.state), trail: false });
     }
-    return time => ({
-      ...autoBrushAt(time, bounds, this.state.autoSpeed, this.state.wobble),
-      step: 0,
-      radius: this.state.brushSize
-    });
+    return time => {
+      const point = autoBrushAt(time, bounds, this.state.autoSpeed, this.state.wobble);
+      return { from: point, to: point, radius: this.state.brushSize, active: 1, step: 0, trail: true };
+    };
   }
 
   async renderGifPass(frameCount, deltaTime, consumeFrame, startProgress, endProgress) {
@@ -178,11 +177,11 @@ export class ExportController {
     for (let frame = 0; frame < frameCount; frame += 1) {
       const time = frame * deltaTime;
       const current = sampleBrush(time);
-      const continuous = previous !== null && previous.step === current.step;
+      const continuous = current.trail && previous !== null && previous.step === current.step;
       this.renderer.stepHeat(deltaTime, {
-        from: continuous ? previous : current,
-        to: current,
-        active: 1,
+        from: continuous ? previous.to : current.from,
+        to: current.to,
+        active: current.active,
         radius: current.radius
       }, this.state);
       this.renderer.stepGoo(deltaTime, this.state);
