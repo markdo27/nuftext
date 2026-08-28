@@ -52,8 +52,13 @@ designed.</textarea></label>
       <details open>
         <summary><span>02</span> Interaction</summary>
         <div class="section-body">
-          <p class="hint">Move across the artwork to raise the colour. Touch and pen work by dragging. Heat sustain keeps feeding the goo after the pointer leaves; goo rise and goo dwell set how slowly the letters swell and settle back to crisp type. Goo dissolve decides whether heated letters merely swell or melt away completely. Words replaces the sweep with a capsule sized to one whole word or line at a time.</p>
-          <label class="field"><span>Word scan</span><select id="scan"><option value="word" selected>Word by word</option><option value="randomWord">Random word</option><option value="line">Line by line</option><option value="randomLine">Random line</option></select></label>
+          <p class="hint">Move across the artwork to raise the colour. Touch and pen work by dragging. Heat sustain keeps feeding the goo after the pointer leaves; goo rise and goo dwell set how slowly the letters swell and settle back to crisp type. Goo dissolve decides whether heated letters merely swell or melt away completely. Words replaces the sweep with a capsule sized to one whole character, word or line at a time.</p>
+          <div class="field-grid">
+            <label class="field"><span>Scan unit</span><select id="scanUnit"><option value="character">Character</option><option value="word" selected>Word</option><option value="line">Line</option></select></label>
+            <label class="field"><span>Scan order</span><select id="scanOrder"><option value="sequence" selected>In order</option><option value="shuffle">Shuffled</option><option value="pick">Click to pick</option></select></label>
+          </div>
+          <p class="hint">In pick mode, click a unit on the artwork to hold the effect on it and click again to release. Clear heat trail drops every pick.</p>
+          <div id="scanSliders"></div>
           <div id="interactionSliders"></div>
           <button class="wide" id="clearHeat" type="button">Clear heat trail</button>
         </div>

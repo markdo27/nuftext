@@ -98,15 +98,16 @@ function verticalExtent(word, baseline, size) {
 
 // Walks the line the same way drawTracked does, so the boxes line up with the
 // glyphs actually painted into the mask.
-function trackedWordBoxes(line, x, baseline, tracking, size) {
-  const boxes = [];
+function trackedBoxes(line, x, baseline, tracking, size) {
+  const words = [];
+  const characters = [];
   let cursor = x;
   let start = null;
   let word = '';
 
   const flush = right => {
     if (start === null) return;
-    boxes.push({ left: start, right, ...verticalExtent(word, baseline, size) });
+    words.push({ left: start, right, ...verticalExtent(word, baseline, size) });
     start = null;
     word = '';
   };
@@ -118,11 +119,16 @@ function trackedWordBoxes(line, x, baseline, tracking, size) {
     } else {
       if (start === null) start = cursor;
       word += character;
+      characters.push({
+        left: cursor,
+        right: cursor + advance,
+        ...verticalExtent(character, baseline, size)
+      });
     }
     cursor += advance + tracking;
   }
   flush(cursor - tracking);
-  return boxes;
+  return { words, characters };
 }
 
 function mergeBoxes(boxes) {
@@ -162,6 +168,7 @@ export function rasterizeText(width, height, state) {
 
   let left = width;
   let right = 0;
+  const characterBoxes = [];
   const wordBoxes = [];
   const lineBoxes = [];
   lines.forEach((line, index) => {
@@ -169,10 +176,11 @@ export function rasterizeText(width, height, state) {
     const x = lineOrigin(state.align, width, margin, lineWidth);
     const baseline = top + index * lineHeight + size * 0.79;
     drawTracked(line, x, baseline, tracking);
-    const boxes = trackedWordBoxes(line, x, baseline, tracking, size);
-    if (boxes.length) {
-      wordBoxes.push(...boxes);
-      lineBoxes.push(mergeBoxes(boxes));
+    const boxes = trackedBoxes(line, x, baseline, tracking, size);
+    if (boxes.words.length) {
+      characterBoxes.push(...boxes.characters);
+      wordBoxes.push(...boxes.words);
+      lineBoxes.push(mergeBoxes(boxes.words));
     }
     if (line.length) {
       left = Math.min(left, x);
@@ -186,7 +194,11 @@ export function rasterizeText(width, height, state) {
     top: box.top / height,
     bottom: box.bottom / height
   });
-  const targets = { words: wordBoxes.map(normalize), lines: lineBoxes.map(normalize) };
+  const targets = {
+    characters: characterBoxes.map(normalize),
+    words: wordBoxes.map(normalize),
+    lines: lineBoxes.map(normalize)
+  };
 
   const hasText = right > left;
   const bounds = hasText ? {

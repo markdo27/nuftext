@@ -1,5 +1,5 @@
 import { autoBrushAt } from './math.js';
-import { scanBrush, scanUnits } from './word-scan.js';
+import { scanBrushes } from './word-scan.js';
 import { buildPalette, createPaletteMapper, encodeGif, indexFrame, sampleFrame } from './gif.js';
 
 const nextTick = (() => {
@@ -156,12 +156,17 @@ export class ExportController {
 
   brushSampler() {
     const { bounds, scanTargets } = this.interaction;
-    if (this.state.mode === 'words' && scanUnits(scanTargets, this.state.scan).length) {
-      return time => ({ ...scanBrush(time, scanTargets, this.state), trail: false });
+    if (this.state.mode === 'words') {
+      // Picks are a fixed selection, so they render as a still frame.
+      if (this.state.scanOrder === 'pick') {
+        const picked = this.interaction.pickedBrushes(this.state);
+        return () => picked;
+      }
+      return time => scanBrushes(time, scanTargets, this.state);
     }
     return time => {
       const point = autoBrushAt(time, bounds, this.state.autoSpeed, this.state.wobble);
-      return { from: point, to: point, radius: this.state.brushSize, active: 1, step: 0, trail: true };
+      return [{ from: point, to: point, radius: this.state.brushSize, active: 1, step: 0, trail: true }];
     };
   }
 
@@ -177,13 +182,16 @@ export class ExportController {
     for (let frame = 0; frame < frameCount; frame += 1) {
       const time = frame * deltaTime;
       const current = sampleBrush(time);
-      const continuous = current.trail && previous !== null && previous.step === current.step;
-      this.renderer.stepHeat(deltaTime, {
-        from: continuous ? previous.to : current.from,
-        to: current.to,
-        active: current.active,
-        radius: current.radius
-      }, this.state);
+      this.renderer.stepHeat(deltaTime, current.map((brush, voice) => {
+        const before = previous && previous[voice];
+        const continuous = brush.trail && before && before.step === brush.step;
+        return {
+          from: continuous ? before.to : brush.from,
+          to: brush.to,
+          active: brush.active,
+          radius: brush.radius
+        };
+      }), this.state);
       this.renderer.stepGoo(deltaTime, this.state);
       this.renderer.render(this.state);
       context.drawImage(this.renderer.canvas, 0, 0);

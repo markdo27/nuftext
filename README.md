@@ -18,7 +18,10 @@ An interactive thermal typography tool for the browser. Move across the type to 
 - Goo dissolve fades the coverage before the threshold, the way the Codrops demo animates opacity: at `0` the heated letters only swell and fuse, and as it rises they neck, break into droplets and melt away entirely before reforming. The halo fades with the material it belongs to, so no flat disc of colour is left behind.
 - Builds a gradient map by downscaling the mask, so heavier ink goos harder (density bias).
 - Three interaction modes: Manual brush, Auto sweep across the block, and Words. Both automatic modes are pure functions of time, so the GIF export replays exactly what the canvas showed.
-- Words selects by typographic unit rather than by position: the heat is a capsule sized to one whole word or line, so a word melts as a word. Choose word or line, in reading order or shuffled; the shuffle deals every unit once per round instead of drawing independently, and each unit blooms and releases inside its own hold.
+- Words selects by typographic unit rather than by position: the heat is a capsule sized to one whole character, word or line, so a word melts as a word. Each unit blooms and releases inside its own hold.
+- Scan order is reading order, shuffled, or click to pick. The shuffle deals a permutation per round so every unit is visited once instead of drawing independently; pick holds the effect on whatever you click, which is the one to use for a still frame.
+- Reading rhythm dwells on long units and skims short ones. It scales around the mean, so the average hold does not change with it.
+- Scan voices runs up to four units at once, spaced an even share of a round apart, so the artwork always has one unit forming while another settles.
 - Includes three reference-driven palettes: Acid Outline, Magenta Heat and Cyan Pink.
 - Supports multiline text, six Google Fonts and local `.ttf`, `.otf`, `.woff` or `.woff2` uploads.
 - Exports the current frame as PNG, live interaction as WebM and a deterministic Auto loop as GIF.

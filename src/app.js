@@ -83,8 +83,8 @@ function startApplication() {
     const deltaTime = Math.min(0.05, (now - previousTime) / 1000);
     previousTime = now;
     if (!state.paused) {
-      const brush = interaction.next(now, state);
-      renderer.stepHeat(deltaTime, brush, state);
+      const brushes = interaction.next(now, state);
+      renderer.stepHeat(deltaTime, brushes, state);
       renderer.stepGoo(deltaTime, state);
       renderer.render(state);
       renderRequested = false;
@@ -102,6 +102,10 @@ const SLIDER_GROUPS = {
     ['fontScale', 'Size', 0.5, 1.3, 0.01, 'percent', true],
     ['tracking', 'Tracking', -0.08, 0.1, 0.001, 'decimal', true],
     ['leading', 'Leading', 0.65, 1.3, 0.01, 'decimal', true]
+  ],
+  scanSliders: [
+    ['scanVoices', 'Scan voices', 1, 4, 1, 'count'],
+    ['scanRhythm', 'Reading rhythm', 0, 1, 0.01, 'percent']
   ],
   interactionSliders: [
     ['brushSize', 'Brush size', 0.005, 0.25, 0.0025, 'percent'],
@@ -167,6 +171,7 @@ function formatSlider(value, format) {
     const percentage = value * 100;
     return `${percentage < 10 && percentage % 1 ? percentage.toFixed(1) : Math.round(percentage)}%`;
   }
+  if (format === 'count') return String(Math.round(value));
   if (format === 'fine') return value.toFixed(4);
   return value.toFixed(2);
 }
@@ -219,13 +224,20 @@ function bindInteractionControls(renderer, interaction, requestRender) {
     updateModeHud();
     requestRender();
   });
-  document.querySelector('#scan').addEventListener('change', event => {
-    state.scan = event.target.value;
+  document.querySelector('#scanUnit').addEventListener('change', event => {
+    state.scanUnit = event.target.value;
+    interaction.clearPicks();
+    interaction.resetClock();
+    requestRender();
+  });
+  document.querySelector('#scanOrder').addEventListener('change', event => {
+    state.scanOrder = event.target.value;
     interaction.resetClock();
     requestRender();
   });
   document.querySelector('#clearHeat').addEventListener('click', () => {
     renderer.clearHeat();
+    interaction.clearPicks();
     interaction.resetClock();
     requestRender();
   });
@@ -286,7 +298,7 @@ function syncControls(sliderBindings) {
     binding.input.value = state[key];
     binding.updateOutput();
   });
-  ['text', 'font', 'align', 'textColor', 'backgroundColor', 'paperTint', 'scan', 'aspect', 'exportHeight', 'duration']
+  ['text', 'font', 'align', 'textColor', 'backgroundColor', 'paperTint', 'scanUnit', 'scanOrder', 'aspect', 'exportHeight', 'duration']
     .forEach(id => { document.querySelector(`#${id}`).value = state[id]; });
   document.querySelector('#uppercase').value = String(state.uppercase);
   document.querySelector('#fontStatus').textContent = 'Built-in font';
