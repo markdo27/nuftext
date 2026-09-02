@@ -66,20 +66,16 @@ function startApplication() {
 
   bindAdvancedToggle();
 
-  document.querySelector('#randomize').addEventListener('click', async () => {
+  document.querySelector('#randomize').addEventListener('click', () => {
     randomizeLook(state);
     syncControls(sliderBindings);
-    /* Wait for the family before rasterising. The built-ins are preloaded
-       at boot so this normally resolves immediately, but on a cold cache it
-       is the difference between the new font and a fallback baked into the
-       mask until something else happens to redraw it. */
-    if (!state.customFont) await loadBuiltInFont(state.font);
-    /* Size, tracking and leading change the glyph geometry, so the mask has
-       to be rasterised again — a plain re-render would light the new palette
-       over the old letterforms. The heat field keeps running, so the artwork
-       moves through the change rather than blinking out. */
-    refreshMask();
+    /* Everything Shuffle touches is a render uniform — nothing it changes
+       alters the glyph geometry, so the rasterised mask and its density map
+       are still valid and only the frame needs redrawing. The heat field is
+       left running, so the artwork moves through the change rather than
+       blinking out. */
     interaction.updateCursorSize(state);
+    requestRender();
     updateExportStatus('');
   });
 

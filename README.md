@@ -27,13 +27,16 @@ preference is remembered per browser.
 
 ## Shuffle
 
-**Shuffle**, beside Reset, randomises the look: palette, goo, brush, halo,
-grain, typographic scale and the built-in font.
+**Shuffle**, beside Reset, randomises the treatment: palette, goo, brush,
+halo, motion, grain and the paper ground.
 
-It leaves alone what you have already decided — the text, its alignment and
-case, the canvas format, export height and duration, and the interaction
-mode. An uploaded font is kept too, since replacing it would mean finding
-the file again to get it back.
+It never touches the typesetting. The text, the font — Archivo Black unless
+you change it — its size, tracking, leading, alignment, case and ink all
+stay exactly as set, as do the canvas format, export height, duration and
+interaction mode. Typesetting is the part of the poster you authored;
+rerolling it would hand back a different piece of work rather than a
+different treatment of the same one. So the type holds still and the heat
+around it changes.
 
 Each control is rolled inside a band narrower than its slider. The sliders
 have to reach the extremes so the tool can be pushed; a randomiser that

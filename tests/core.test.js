@@ -219,7 +219,6 @@ function seededRandom(seed = 1) {
 
 test('randomised look stays inside every slider range', () => {
   const bounds = {
-    fontScale: [0.5, 1.3], tracking: [-0.08, 0.1], leading: [0.65, 1.3],
     brushSize: [0.005, 0.25], brushEdgeBlur: [0, 1], heatStrength: [0.2, 1.5],
     heatSustain: [0, 3], trail: [0, 0.95], autoSpeed: [0.2, 2.5], wobble: [0, 1],
     gooAmount: [0, 1], gooSpread: [0, 1], gooViscosity: [0, 1],
@@ -239,26 +238,46 @@ test('randomised look stays inside every slider range', () => {
   }
 });
 
-test('randomised look leaves content and output settings alone', () => {
+// Shuffle must never touch the typesetting or the output setup. Asserted
+// across many seeds rather than one, so a range that only occasionally
+// reaches a guarded key cannot slip through.
+test('randomised look leaves every text and output setting alone', () => {
+  const held = [
+    'text', 'font', 'customFont', 'fontScale', 'tracking', 'leading',
+    'align', 'uppercase', 'textColor',
+    'mode', 'aspect', 'exportHeight', 'duration'
+  ];
   const original = createState();
-  const state = randomizeLook(createState(), seededRandom(7));
-  for (const key of ['text', 'align', 'uppercase', 'mode', 'aspect', 'exportHeight', 'duration']) {
-    assert.deepEqual(state[key], original[key], `${key} should not be randomised`);
+  for (let seed = 1; seed <= 200; seed += 1) {
+    const state = randomizeLook(createState(), seededRandom(seed));
+    for (const key of held) {
+      assert.deepEqual(state[key], original[key], `${key} changed at seed ${seed}`);
+    }
   }
 });
 
-test('randomised look keeps an uploaded font but swaps built-in ones', () => {
+test('randomised look keeps Archivo Black and any uploaded font', () => {
+  for (let seed = 1; seed <= 60; seed += 1) {
+    assert.equal(randomizeLook(createState(), seededRandom(seed)).font, 'Archivo Black');
+  }
   const uploaded = Object.assign(createState(), { customFont: 'UserUpload_1' });
   randomizeLook(uploaded, seededRandom(3));
   assert.equal(uploaded.customFont, 'UserUpload_1');
+});
 
-  // Across many seeds a built-in family should actually change sometimes,
-  // otherwise the branch is dead and shuffling would never restyle the type.
-  const seen = new Set();
+test('randomised look still varies the treatment it owns', () => {
+  const palettes = new Set();
+  const goo = new Set();
+  const grounds = new Set();
   for (let seed = 1; seed <= 60; seed += 1) {
-    seen.add(randomizeLook(createState(), seededRandom(seed)).font);
+    const state = randomizeLook(createState(), seededRandom(seed));
+    palettes.add(state.palette.join());
+    goo.add(state.gooAmount);
+    grounds.add(state.backgroundColor);
   }
-  assert.ok(seen.size > 1, 'built-in font never varied');
+  assert.ok(palettes.size > 50, 'palette barely varied');
+  assert.ok(goo.size > 20, 'goo amount barely varied');
+  assert.ok(grounds.size > 1, 'ground never varied');
 });
 
 test('random palette returns four usable hex stops ending pale', () => {

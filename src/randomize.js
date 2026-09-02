@@ -1,13 +1,15 @@
-import { FONT_OPTIONS } from './state.js';
-
 /**
- * Randomisation of the look only.
+ * Randomisation of the effect only.
  *
- * What is deliberately left alone: the text, its alignment and case, the
- * canvas format, export height and duration, and the interaction mode.
- * Those are decisions the user has already made — a randomiser that
- * rewrites the copy or flips the aspect ratio is not offering variations
- * on your poster, it is replacing it.
+ * The whole of section 01 is off limits: the text, the font, its size,
+ * tracking, leading, alignment, case and ink. Typesetting is the part of
+ * the poster the user has actually authored, and rerolling it means every
+ * shuffle hands back a different piece of work rather than a different
+ * treatment of the same one. The type stays put and the heat around it
+ * changes.
+ *
+ * Canvas format, export height, duration and the interaction mode are held
+ * for the same reason — they are output setup, not look.
  *
  * Ranges below are narrower than the sliders allow. The sliders have to
  * reach the extremes so the tool can be pushed; a randomiser that visits
@@ -16,12 +18,6 @@ import { FONT_OPTIONS } from './state.js';
  * part of the range that still reads as type.
  */
 const RANGES = {
-  // Typography — enough movement to change the composition, not enough to
-  // overflow the frame or collapse the leading into overlapping lines.
-  fontScale: [0.78, 1.28],
-  tracking: [-0.07, 0.05],
-  leading: [0.72, 1.05],
-
   // Heat brush
   brushSize: [0.05, 0.2],
   brushEdgeBlur: [0.35, 1],
@@ -60,7 +56,6 @@ const RANGES = {
    control can actually represent — otherwise the readout shows a number
    the user can never dial back to. */
 const STEPS = {
-  fontScale: 0.01, tracking: 0.001, leading: 0.01,
   brushSize: 0.0025, brushEdgeBlur: 0.01, heatStrength: 0.01,
   heatSustain: 0.05, trail: 0.01, autoSpeed: 0.01, wobble: 0.01,
   gooAmount: 0.01, gooSpread: 0.01, gooViscosity: 0.01, gooThreshold: 0.005,
@@ -134,20 +129,11 @@ export function randomizeLook(state, random = Math.random) {
 
   state.palette = randomPalette(random);
   state.paletteName = 'custom';
+
+  /* The ground moves, the ink does not. Paper is part of the treatment;
+     ink colour belongs to the type, which this function does not touch. */
   state.backgroundColor = pick(GROUNDS, random);
   state.paperTint = state.backgroundColor;
-
-  /* Ink is kept near-neutral and dark. The halo supplies the colour; a
-     coloured ink competes with it and the letterforms stop reading. */
-  const inkValue = Math.round(40 + random() * 50);
-  state.textColor = '#' + inkValue.toString(16).padStart(2, '0').repeat(3);
-
-  /* Only swap the family when the user has not uploaded one. Replacing an
-     uploaded font would mean re-uploading the file to get it back, which
-     no other control in the tool can do to you. */
-  if (!state.customFont) {
-    state.font = pick(Object.keys(FONT_OPTIONS), random);
-  }
 
   return state;
 }
