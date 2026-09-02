@@ -19,7 +19,7 @@ function timestamp() {
 function download(blob, extension) {
   const anchor = document.createElement('a');
   anchor.href = URL.createObjectURL(blob);
-  anchor.download = `nuftext-${timestamp()}.${extension}`;
+  anchor.download = `thermal-type-${timestamp()}.${extension}`;
   anchor.click();
   setTimeout(() => URL.revokeObjectURL(anchor.href), 8000);
 }

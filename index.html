@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#0b0b0d">
-  <meta name="description" content="Interactive thermal typography generator with mouse-driven colour halation.">
-  <title>NUFTEXT — Interactive Thermal Type</title>
+  <meta name="description" content="Thermal Type — interactive thermal typography generator with pointer-driven colour halation.">
+  <title>Thermal Type — Interactive Typography</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Black&family=Bebas+Neue&family=Inter:wght@900&family=League+Spartan:wght@800;900&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet">
@@ -15,7 +15,7 @@
        one. No stored choice means the system preference decides, which the
        stylesheet handles on its own. */
     try {
-      var t = localStorage.getItem('nuftext-theme');
+      var t = localStorage.getItem('thermal-type-theme');
       if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
     } catch (e) { /* private mode: fall through to the system preference */ }
   </script>
@@ -23,7 +23,7 @@
 <body>
   <aside class="panel" aria-label="Tool controls">
     <header class="brand">
-      <div><h1>NUFTEXT</h1><p>Interactive thermal type</p></div>
+      <div class="brand-name"><h1>Thermal Type</h1><p>Interactive typography</p></div>
       <div class="brand-actions">
         <button class="quiet" id="resetAll" type="button">Reset</button>
         <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle colour theme"></button>
@@ -31,10 +31,18 @@
     </header>
 
     <nav class="mode-switch" aria-label="Interaction mode">
-      <button data-mode="manual" type="button">Manual</button>
-      <button data-mode="auto" class="active" type="button">Auto</button>
-      <button data-mode="words" type="button">Words</button>
-      <button id="pauseToggle" type="button">Pause</button>
+      <span class="switch-label">Mode</span>
+      <div class="switch-row">
+        <button data-mode="manual" type="button">Manual</button>
+        <button data-mode="auto" class="active" type="button">Auto</button>
+        <button data-mode="words" type="button">Words</button>
+      </div>
+      <div class="switch-row two">
+        <button id="pauseToggle" type="button">Pause</button>
+        <button id="advancedToggle" type="button" aria-pressed="false">
+          Advanced <span class="toggle-count">0</span>
+        </button>
+      </div>
     </nav>
 
     <main class="controls">
@@ -52,27 +60,39 @@ designed.</textarea></label>
             <label class="upload"><span>Upload font</span><input id="fontFile" type="file" accept=".ttf,.otf,.woff,.woff2,font/*"></label>
           </div>
           <div class="file-status" id="fontStatus">Built-in font</div>
-          <div class="field-grid three">
-            <label class="field"><span>Align</span><select id="align"><option value="left">Left</option><option value="center" selected>Center</option><option value="right">Right</option></select></label>
-            <label class="field"><span>Case</span><select id="uppercase"><option value="true" selected>Uppercase</option><option value="false">Keep case</option></select></label>
-            <label class="field"><span>Ink</span><input id="textColor" type="color" value="#4a4a4a"></label>
+          <div class="group">
+            <h3 class="group-title">Setting</h3>
+            <div class="field-grid three">
+              <label class="field"><span>Align</span><select id="align"><option value="left">Left</option><option value="center" selected>Center</option><option value="right">Right</option></select></label>
+              <label class="field"><span>Case</span><select id="uppercase"><option value="true" selected>Uppercase</option><option value="false">Keep case</option></select></label>
+              <label class="field"><span>Ink</span><input id="textColor" type="color" value="#4a4a4a"></label>
+            </div>
+            <div id="textSliders"></div>
           </div>
-          <div id="textSliders"></div>
         </div>
       </details>
 
       <details open>
         <summary><span>02</span> Interaction</summary>
         <div class="section-body">
-          <p class="hint">Move across the artwork to raise the colour. Touch and pen work by dragging. Heat sustain keeps feeding the goo after the pointer leaves; goo rise and goo dwell set how slowly the letters swell and settle back to crisp type. Goo dissolve decides whether heated letters merely swell or melt away completely. Words replaces the sweep with a capsule sized to one whole character, word or line at a time.</p>
-          <div class="field-grid">
-            <label class="field"><span>Scan unit</span><select id="scanUnit"><option value="character">Character</option><option value="word" selected>Word</option><option value="line">Line</option></select></label>
-            <label class="field"><span>Scan order</span><select id="scanOrder"><option value="sequence" selected>In order</option><option value="shuffle">Shuffled</option><option value="pick">Click to pick</option></select></label>
+          <p class="hint">Move across the artwork to melt it. Touch and pen work by dragging.</p>
+
+          <div class="group">
+            <h3 class="group-title">Word scan</h3>
+            <div class="field-grid">
+              <label class="field"><span>Scan unit</span><select id="scanUnit"><option value="character">Character</option><option value="word" selected>Word</option><option value="line">Line</option></select></label>
+              <label class="field"><span>Scan order</span><select id="scanOrder"><option value="sequence" selected>In order</option><option value="shuffle">Shuffled</option><option value="pick">Click to pick</option></select></label>
+            </div>
+            <p class="hint">Used in <strong>Words</strong> mode. Pick order holds the effect on whatever you click; click again to release.</p>
+            <div id="scanSliders"></div>
           </div>
-          <p class="hint">In pick mode, click a unit on the artwork to hold the effect on it and click again to release. Clear heat trail drops every pick.</p>
-          <div id="scanSliders"></div>
-          <div id="interactionSliders"></div>
-          <button class="wide" id="clearHeat" type="button">Clear heat trail</button>
+
+          <div class="group">
+            <h3 class="group-title">Heat brush</h3>
+            <div id="interactionSliders"></div>
+            <p class="hint" data-advanced>Sustain keeps feeding the goo after the pointer leaves. Rise and dwell set how slowly letters swell, then settle back to crisp type.</p>
+            <button class="wide" id="clearHeat" type="button">Clear heat trail</button>
+          </div>
         </div>
       </details>
 
@@ -95,7 +115,7 @@ designed.</textarea></label>
         <div class="section-body">
           <div class="field-grid">
             <label class="field"><span>Background</span><input id="backgroundColor" type="color" value="#f4f2ec"></label>
-            <label class="field"><span>Paper tint</span><input id="paperTint" type="color" value="#f4f2ec"></label>
+            <label class="field" data-advanced><span>Paper tint</span><input id="paperTint" type="color" value="#f4f2ec"></label>
           </div>
           <div id="textureSliders"></div>
         </div>
@@ -108,9 +128,9 @@ designed.</textarea></label>
             <label class="field"><span>Format</span><select id="aspect"><option value="0.8">4 : 5 Portrait</option><option value="1">1 : 1 Square</option><option value="0.5625">9 : 16 Story</option><option value="1.7778" selected>16 : 9 Landscape</option></select></label>
             <label class="field"><span>Height</span><select id="exportHeight"><option value="1200">1200 px</option><option value="2400" selected>2400 px</option><option value="3200">3200 px</option></select></label>
           </div>
-          <label class="field"><span>Motion duration</span><select id="duration"><option value="4" selected>4 seconds</option><option value="6">6 seconds</option><option value="10">10 seconds</option></select></label>
+          <label class="field" data-advanced><span>Motion duration</span><select id="duration"><option value="4" selected>4 seconds</option><option value="6">6 seconds</option><option value="10">10 seconds</option></select></label>
           <div class="export-grid"><button id="exportPng" type="button">PNG</button><button id="exportWebm" type="button">WebM</button><button id="exportGif" class="accent" type="button">GIF</button></div>
-          <p class="hint export-note">PNG captures the current frame. WebM records the live canvas. GIF renders a clean Auto loop.</p>
+          <p class="hint export-note">PNG saves the current frame. WebM records live. GIF renders a clean loop.</p>
           <div class="export-status" id="exportStatus" aria-live="polite"></div>
         </div>
       </details>
@@ -136,7 +156,7 @@ designed.</textarea></label>
         || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
       var next = current === 'dark' ? 'light' : 'dark';
       root.dataset.theme = next;
-      try { localStorage.setItem('nuftext-theme', next); } catch (e) { /* not persisted */ }
+      try { localStorage.setItem('thermal-type-theme', next); } catch (e) { /* not persisted */ }
     });
   </script>
   <script type="module" src="src/app.js"></script>

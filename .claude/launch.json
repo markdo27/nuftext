@@ -2,7 +2,7 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "nuftext",
+      "name": "thermal-type",
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "4173"],
       "port": 4173

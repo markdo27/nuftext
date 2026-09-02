@@ -63,6 +63,8 @@ function startApplication() {
   });
   bindExports(exporter);
 
+  bindAdvancedToggle();
+
   document.querySelector('#resetAll').addEventListener('click', () => {
     resetState(state);
     syncControls(sliderBindings);
@@ -96,6 +98,31 @@ function startApplication() {
     requestAnimationFrame(loop);
   }
 }
+
+/**
+ * Controls kept out of the way until Advanced is switched on.
+ *
+ * The split is by whether a control changes what you are making or how it
+ * is made. Size, brush, palette and goo amount are the first things anyone
+ * reaches for; goo viscosity, density bias and misregistration only mean
+ * something once you already know what the first set does. Hiding the
+ * second group takes the panel from 27 sliders to 10, which is the
+ * difference between a tool you can open and one you have to study.
+ *
+ * Nothing is disabled — every value stays live and exports exactly as set,
+ * so a preset built with Advanced on still renders correctly with it off.
+ */
+const ADVANCED_KEYS = new Set([
+  // Text — fine typesetting, not needed to get a first result
+  'tracking', 'leading',
+  // Interaction — scan tuning and the goo envelope
+  'scanVoices', 'scanRhythm', 'brushEdgeBlur', 'heatSustain', 'trail',
+  'gooRise', 'gooDwell', 'wobble',
+  // Effect — the physics behind the look rather than the look itself
+  'gooSpread', 'gooViscosity', 'gooThreshold', 'densityBias', 'coreColorization',
+  // Texture — grain and plate detail
+  'grainSize', 'misregistration'
+]);
 
 const SLIDER_GROUPS = {
   textSliders: [
@@ -137,6 +164,40 @@ const SLIDER_GROUPS = {
   ]
 };
 
+/**
+ * Advanced is a view state, not a setting: it only decides what the panel
+ * shows. It is remembered per browser so someone who has opened it once
+ * does not have to keep re-opening it, and the count tells a first-time
+ * user the extra controls exist at all rather than leaving them hidden
+ * behind an unlabelled switch.
+ */
+function bindAdvancedToggle() {
+  const button = document.querySelector('#advancedToggle');
+  const count = document.querySelectorAll('[data-advanced]').length;
+  const label = button.querySelector('.toggle-count');
+  if (label) label.textContent = String(count);
+
+  /* The body flag deliberately uses a different attribute from the control
+     markers. Reusing `data-advanced` for both made `<body>` itself match
+     `[data-advanced]`, so the count query picked up the container it was
+     counting inside of. */
+  const apply = on => {
+    document.body.dataset.showAdvanced = on ? 'on' : 'off';
+    button.classList.toggle('active', on);
+    button.setAttribute('aria-pressed', String(on));
+  };
+
+  let stored = null;
+  try { stored = localStorage.getItem('thermal-type-advanced'); } catch { /* private mode */ }
+  apply(stored === 'on');
+
+  button.addEventListener('click', () => {
+    const next = document.body.dataset.showAdvanced !== 'on';
+    apply(next);
+    try { localStorage.setItem('thermal-type-advanced', next ? 'on' : 'off'); } catch { /* not persisted */ }
+  });
+}
+
 function buildSliders(requestRender, refreshMask, interaction) {
   const bindings = new Map();
   Object.entries(SLIDER_GROUPS).forEach(([containerId, definitions]) => {
@@ -145,6 +206,7 @@ function buildSliders(requestRender, refreshMask, interaction) {
       const [key, label, minimum, maximum, step, format, redrawMask] = definition;
       const wrapper = document.createElement('label');
       wrapper.className = 'slider';
+      if (ADVANCED_KEYS.has(key)) wrapper.dataset.advanced = '';
       wrapper.innerHTML = `<span class="slider-head"><span>${label}</span><output class="slider-output"></output></span>`;
       const input = document.createElement('input');
       input.type = 'range';

@@ -1,8 +1,20 @@
-# NUFTEXT
+# Thermal Type
 
 An interactive thermal typography tool for the browser. Move across the type to melt its silhouette into gooey blobs and raise a multi-band colour halo, or let the automatic scan animate it for you.
 
 **Live:** https://markdo27.github.io/nuftext/
+
+> The repository and its Pages URL are still `nuftext`; renaming them would
+> break the published link, so that is left as a separate decision.
+
+## Basic and advanced controls
+
+The panel opens with ten controls — text, font, size, brush, palette, goo
+amount, grain, export. **Advanced** reveals the remaining nineteen: fine
+typesetting, the goo envelope and its physics, scan tuning and plate detail.
+
+Advanced is a view state only. Hidden controls stay live at whatever value
+they hold, so a look built with Advanced on renders identically with it off.
 
 ## What it does
 
@@ -74,8 +86,13 @@ for this tool.
 Two departures from upstream are noted in `styles.css`: ASTA centres documents at
 an 80ch measure, which a fixed control column beside a canvas cannot use, and its
 `* + *` document rhythm is replaced by explicit spacing on the same line-height
-scale. The chrome is kept strictly monochrome so the artwork is the only colour
-on screen — state is shown by inversion rather than an accent.
+scale.
+
+A single accent is reserved for one job — marking what is currently **on**: the
+live interaction mode, the open section, the selected palette. Everything inert
+stays monochrome, so the accent keeps its meaning and the canvas remains the only
+other place colour appears. Section headers are filled bands with a numbered chip
+so a long panel can be scanned rather than read.
 
 Press the sun/moon button to switch theme. With no stored choice the system
 preference decides.

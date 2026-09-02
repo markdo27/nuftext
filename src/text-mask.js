@@ -213,7 +213,7 @@ export function rasterizeText(width, height, state) {
 
 export async function loadCustomFont(file) {
   if (!file) throw new Error('No font file selected.');
-  const family = `NuftextUpload_${Date.now()}`;
+  const family = `ThermalTypeUpload_${Date.now()}`;
   const bytes = await file.arrayBuffer();
   const face = new FontFace(family, bytes);
   const loaded = await face.load();

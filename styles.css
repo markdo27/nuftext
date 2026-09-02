@@ -1,5 +1,5 @@
 /**
- * NUFTEXT — UI styles.
+ * Thermal Type — UI styles.
  *
  * Built on the ASTA design system (MIT, https://github.com/anton-io/asta):
  * a monospace framework where every element aligns to a character grid.
@@ -17,11 +17,14 @@
  *     margins onto absolutely-positioned children, so spacing here is
  *     explicit and still quantised to the same line-height scale.
  *
- * The chrome is deliberately monochrome. This tool's whole output is
- * colour, and an accent anywhere in the furniture competes with the
- * artwork it is meant to frame — so state is shown by inversion (ASTA's
- * own idiom) and the only colour on screen is the canvas and the swatches
- * that feed it.
+ * On colour: an earlier pass kept the chrome strictly monochrome so the
+ * artwork would be the only colour on screen. That read as undifferentiated
+ * — with every control drawn in the same flat black-on-white, nothing told
+ * you which mode was live, which palette was selected, or where one section
+ * ended and the next began. A single accent is now reserved for exactly one
+ * job: marking what is currently ON. Everything inert stays monochrome, so
+ * the accent still means something at a glance and the canvas is still the
+ * only place a second colour appears.
  */
 
 /* ─── Fonts ─────────────────────────────────────────────────────────── */
@@ -55,9 +58,16 @@
   --spacing-2: calc(var(--line-height) * 2);
 
   --text-color: #000;
-  --text-color-alt: #666;
+  --text-color-alt: #5a5a5a;
   --background-color: #fff;
-  --background-color-alt: #eee;
+  --background-color-alt: #ededed;
+  /* Header bands need to separate from the body without becoming a third
+     surface colour; a hair darker than background-alt is enough. */
+  --surface-band: #e0e0e0;
+  /* Reserved for "this is on". Dark enough to carry white text at the
+     small sizes this panel uses. */
+  --accent: #b3350a;
+  --accent-ink: #fff;
 
   --font-weight-normal: 500;
   --font-weight-medium: 600;
@@ -75,22 +85,31 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     --text-color: #fff;
-    --text-color-alt: #aaa;
+    --text-color-alt: #9a9a9a;
     --background-color: #000;
-    --background-color-alt: #111;
+    --background-color-alt: #141414;
+    --surface-band: #1e1e1e;
+    --accent: #ff7a3c;
+    --accent-ink: #000;
   }
 }
 :root[data-theme='dark'] {
   --text-color: #fff;
-  --text-color-alt: #aaa;
+  --text-color-alt: #9a9a9a;
   --background-color: #000;
-  --background-color-alt: #111;
+  --background-color-alt: #141414;
+  --surface-band: #1e1e1e;
+  --accent: #ff7a3c;
+  --accent-ink: #000;
 }
 :root[data-theme='light'] {
   --text-color: #000;
-  --text-color-alt: #666;
+  --text-color-alt: #5a5a5a;
   --background-color: #fff;
-  --background-color-alt: #eee;
+  --background-color-alt: #ededed;
+  --surface-band: #e0e0e0;
+  --accent: #b3350a;
+  --accent-ink: #fff;
 }
 
 /* ─── Reset ─────────────────────────────────────────────────────────── */
@@ -132,12 +151,14 @@ button, input, select, textarea, output {
   padding: var(--spacing-1) 2ch;
   border-bottom: var(--border-thickness) solid var(--text-color);
 }
+.brand-name { min-width: 0; }
 .brand h1 {
-  font-size: 1.35rem;
+  font-size: 1.2rem;
   font-weight: var(--font-weight-bold);
   text-transform: uppercase;
   letter-spacing: 0.05ch;
   line-height: var(--line-height);
+  white-space: nowrap;
 }
 .brand p {
   margin-top: calc(var(--line-height) / 4);
@@ -148,15 +169,46 @@ button, input, select, textarea, output {
 }
 .brand-actions { display: flex; align-items: center; gap: 1ch; margin-left: auto; }
 
-/* Four modes (Manual / Auto / Words / Pause) wrap to a 2x2 block rather
-   than shrinking to a row of unreadable four-character buttons. */
+/* The three interaction modes are mutually exclusive and belong on one
+   row; Pause and Advanced are separate switches and sit apart from them,
+   because grouping all five made it look like a five-way choice. */
 .mode-switch {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1ch;
   padding: var(--spacing-1) 2ch;
   border-bottom: var(--border-thickness) solid var(--text-color);
+  background: var(--background-color-alt);
 }
+.switch-label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.14ch;
+  color: var(--text-color-alt);
+  margin-bottom: calc(var(--line-height) / 3);
+}
+.switch-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1ch; }
+.switch-row.two { grid-template-columns: 1fr 1fr; margin-top: 1ch; }
+
+.toggle-count {
+  display: inline-grid;
+  place-content: center;
+  min-width: 2.5ch;
+  margin-left: 0.5ch;
+  background: var(--text-color);
+  color: var(--background-color);
+  font-size: 0.62rem;
+  font-variant-numeric: tabular-nums;
+}
+#advancedToggle.active .toggle-count {
+  background: var(--accent-ink);
+  color: var(--accent);
+}
+
+/* ─── Advanced controls ─────────────────────────────────────────────────
+   Hidden by default and revealed as a block. Kept in the DOM rather than
+   built on demand so their values stay bound and exports are unaffected
+   by whether the panel happens to be showing them. */
+body:not([data-show-advanced='on']) [data-advanced] { display: none !important; }
 
 .controls {
   overflow-y: auto;
@@ -164,39 +216,81 @@ button, input, select, textarea, output {
   padding-bottom: var(--spacing-2);
 }
 
-/* ─── Collapsible sections ──────────────────────────────────────────── */
+/* ─── Collapsible sections ──────────────────────────────────────────────
+   A section has to be findable while scrolling a long panel. The header is
+   a filled band with a boxed number, so the eye lands on a run of solid
+   bars rather than on twenty identical rows of text; the open one carries
+   an accent rule down its left edge so you can see where you are without
+   reading anything. */
 details { border-bottom: var(--border-thickness) solid var(--text-color); }
 
 summary {
   display: flex;
-  align-items: baseline;
-  gap: 1ch;
-  padding: var(--spacing-1) 2ch;
+  align-items: center;
+  gap: 1.5ch;
+  padding: calc(var(--line-height) * 0.75) 2ch;
   cursor: pointer;
   user-select: none;
   text-transform: uppercase;
-  font-weight: var(--font-weight-medium);
-  font-size: 0.86rem;
-  letter-spacing: 0.06ch;
+  font-weight: var(--font-weight-bold);
+  font-size: 0.9rem;
+  letter-spacing: 0.08ch;
+  background: var(--surface-band);
+  border-left: 4px solid transparent;
   /* The upstream framework styles `summary::marker` directly. Safari does
      not honour `content` on `::marker`, so the disclosure glyph is drawn
      as a `::before` instead — same look, works everywhere. */
   list-style: none;
 }
 summary::-webkit-details-marker { display: none; }
-summary::before {
-  content: '▶';
-  font-size: 0.62rem;
-  color: var(--text-color-alt);
-}
-details[open] > summary::before { content: '▼'; }
+
+/* Numbered chip. Boxed so it reads as a marker, not as part of the title. */
 summary > span:first-of-type {
-  color: var(--text-color-alt);
+  display: inline-grid;
+  place-content: center;
+  min-width: 3ch;
+  height: var(--line-height);
+  padding: 0 0.5ch;
+  background: var(--text-color);
+  color: var(--background-color);
+  font-size: 0.7rem;
+  font-weight: var(--font-weight-bold);
   font-variant-numeric: tabular-nums;
 }
+summary::after {
+  content: '+';
+  margin-left: auto;
+  font-size: 1rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--text-color-alt);
+}
+details[open] > summary { border-left-color: var(--accent); }
+details[open] > summary::after { content: '−'; }
+details[open] > summary > span:first-of-type {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
 summary:hover { background: var(--background-color-alt); }
+summary:focus-visible { outline: var(--border-thickness) solid var(--accent); outline-offset: -2px; }
 
-.section-body { padding: 0 2ch var(--spacing-1-5); }
+.section-body {
+  padding: var(--spacing-1) 2ch var(--spacing-1-5);
+  border-left: 4px solid transparent;
+}
+
+/* ─── Groups inside a section ───────────────────────────────────────── */
+.group { margin-top: var(--spacing-1-5); }
+.group:first-child { margin-top: var(--spacing-half); }
+.group-title {
+  font-size: 0.7rem;
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.14ch;
+  color: var(--text-color-alt);
+  padding-bottom: calc(var(--line-height) / 4);
+  border-bottom: 1px solid var(--text-color-alt);
+  margin-bottom: var(--spacing-half);
+}
 
 /* ─── Typography helpers ────────────────────────────────────────────── */
 .hint {
@@ -248,12 +342,22 @@ select:focus, textarea:focus, input:focus-visible {
   --border-thickness: 3px;
   outline: none;
 }
-button.active, button.accent {
+/* The one job the accent has: showing what is currently on. */
+button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  font-weight: var(--font-weight-bold);
+}
+button.active:hover { background: var(--accent); filter: brightness(1.1); }
+/* Export's primary action is emphasis, not state — inverted, not accented,
+   so a live mode is never confused with a button that merely looks loud. */
+button.accent {
   background: var(--text-color);
   color: var(--background-color);
   font-weight: var(--font-weight-bold);
 }
-button.active:hover, button.accent:hover { background: var(--text-color); }
+button.accent:hover { background: var(--text-color); }
 button:disabled { opacity: 0.35; cursor: wait; transform: none; }
 
 .quiet {
@@ -311,14 +415,25 @@ input[type='color']::-moz-color-swatch { border: 0; }
 .slider-head {
   display: flex;
   justify-content: space-between;
+  align-items: baseline;
   gap: 1ch;
-  color: var(--text-color-alt);
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06ch;
+  color: var(--text-color);
+  font-size: 0.78rem;
+  letter-spacing: 0.04ch;
   font-weight: var(--font-weight-medium);
 }
-.slider-output { color: var(--text-color); font-variant-numeric: tabular-nums; }
+/* The readout is the thing you check while dragging, so it is boxed and
+   set at full contrast — previously it was the same grey as its own label
+   and the two blurred together down the column. */
+.slider-output {
+  color: var(--text-color);
+  background: var(--background-color-alt);
+  padding: 0 0.6ch;
+  font-size: 0.74rem;
+  font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 
 input[type='range'] {
   -webkit-appearance: none;
@@ -331,29 +446,33 @@ input[type='range'] {
   padding: 0;
 }
 input[type='range']::-webkit-slider-runnable-track {
-  height: var(--border-thickness);
-  background: var(--text-color-alt);
+  height: 4px;
+  background: var(--background-color-alt);
+  border: 1px solid var(--text-color-alt);
 }
 input[type='range']::-moz-range-track {
-  height: var(--border-thickness);
-  background: var(--text-color-alt);
+  height: 4px;
+  background: var(--background-color-alt);
+  border: 1px solid var(--text-color-alt);
 }
 input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 1.5ch;
+  width: 1.6ch;
   height: var(--line-height);
   background: var(--text-color);
-  border: 0;
+  border: 2px solid var(--background-color);
   border-radius: 0;
-  margin-top: calc((var(--border-thickness) - var(--line-height)) / 2);
+  margin-top: calc((4px - var(--line-height)) / 2);
 }
 input[type='range']::-moz-range-thumb {
-  width: 1.5ch;
+  width: 1.6ch;
   height: var(--line-height);
   background: var(--text-color);
-  border: 0;
+  border: 2px solid var(--background-color);
   border-radius: 0;
 }
+input[type='range']:hover::-webkit-slider-thumb { background: var(--accent); }
+input[type='range']:hover::-moz-range-thumb { background: var(--accent); }
 input[type='range']:focus-visible::-webkit-slider-thumb { outline: var(--border-thickness) solid var(--text-color); outline-offset: 2px; }
 
 /* ─── Grouped button rows ───────────────────────────────────────────── */
