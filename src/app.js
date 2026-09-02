@@ -1,6 +1,7 @@
 import { ExportController } from './exporters.js';
 import { HeatInteraction } from './interaction.js';
 import { paletteCss } from './math.js';
+import { randomizeLook } from './randomize.js';
 import { ThermalRenderer } from './renderer.js';
 import { applyPalette, createState, FONT_OPTIONS, PALETTES, resetState } from './state.js';
 import { loadCustomFont, rasterizeText } from './text-mask.js';
@@ -64,6 +65,23 @@ function startApplication() {
   bindExports(exporter);
 
   bindAdvancedToggle();
+
+  document.querySelector('#randomize').addEventListener('click', async () => {
+    randomizeLook(state);
+    syncControls(sliderBindings);
+    /* Wait for the family before rasterising. The built-ins are preloaded
+       at boot so this normally resolves immediately, but on a cold cache it
+       is the difference between the new font and a fallback baked into the
+       mask until something else happens to redraw it. */
+    if (!state.customFont) await loadBuiltInFont(state.font);
+    /* Size, tracking and leading change the glyph geometry, so the mask has
+       to be rasterised again — a plain re-render would light the new palette
+       over the old letterforms. The heat field keeps running, so the artwork
+       moves through the change rather than blinking out. */
+    refreshMask();
+    interaction.updateCursorSize(state);
+    updateExportStatus('');
+  });
 
   document.querySelector('#resetAll').addEventListener('click', () => {
     resetState(state);
@@ -371,7 +389,10 @@ function syncControls(sliderBindings) {
   ['text', 'font', 'align', 'textColor', 'backgroundColor', 'paperTint', 'scanUnit', 'scanOrder', 'aspect', 'exportHeight', 'duration']
     .forEach(id => { document.querySelector(`#${id}`).value = state[id]; });
   document.querySelector('#uppercase').value = String(state.uppercase);
-  document.querySelector('#fontStatus').textContent = 'Built-in font';
+  /* Only claim a built-in when there actually is one. Shuffle preserves an
+     uploaded family, so hard-coding this label made the panel report a font
+     the artwork was not being set in. */
+  if (!state.customFont) document.querySelector('#fontStatus').textContent = 'Built-in font';
   document.querySelector('#pauseToggle').textContent = state.paused ? 'Play' : 'Pause';
   document.querySelector('#pauseToggle').classList.toggle('active', state.paused);
   syncModeButtons();

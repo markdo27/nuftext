@@ -25,6 +25,22 @@ whatever value they hold, so a look built with Advanced on renders
 identically with it off, and exports are unaffected either way. The
 preference is remembered per browser.
 
+## Shuffle
+
+**Shuffle**, beside Reset, randomises the look: palette, goo, brush, halo,
+grain, typographic scale and the built-in font.
+
+It leaves alone what you have already decided — the text, its alignment and
+case, the canvas format, export height and duration, and the interaction
+mode. An uploaded font is kept too, since replacing it would mean finding
+the file again to get it back.
+
+Each control is rolled inside a band narrower than its slider. The sliders
+have to reach the extremes so the tool can be pushed; a randomiser that
+visits them mostly produces frames you would not keep. `randomizeLook`
+takes an injectable random source, so the bands are covered by tests rather
+than eyeballed.
+
 ## What it does
 
 - Keeps unheated text pixel-for-pixel crisp while the letters under the brush swell, fuse with their neighbours and neck apart like liquid.

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { autoBrushAt, hexToRgb, triangleWave } from '../src/math.js';
 import { applyPalette, createState, PALETTES, resetState } from '../src/state.js';
 import { encodeGif } from '../src/gif.js';
+import { randomizeLook, randomPalette } from '../src/randomize.js';
 import { densityAt, densityFromPixels, densityGridSize } from '../src/density.js';
 import {
   buildScanTimeline, capsuleBrush, emptyScanTargets, roundOrder,
@@ -204,4 +205,73 @@ test('a unit narrower than the capsule collapses to its midpoint', () => {
 test('pick mode and an empty layout inject nothing', () => {
   assert.deepEqual(scanBrushes(4, sampleTargets(), scanState({ scanOrder: 'pick' })), []);
   assert.deepEqual(scanBrushes(4, emptyScanTargets(), scanState()), []);
+});
+
+// A seeded generator so the randomiser can be asserted on rather than
+// merely executed. Values are deterministic per seed.
+function seededRandom(seed = 1) {
+  let value = seed >>> 0;
+  return () => {
+    value = (value * 1664525 + 1013904223) >>> 0;
+    return value / 4294967296;
+  };
+}
+
+test('randomised look stays inside every slider range', () => {
+  const bounds = {
+    fontScale: [0.5, 1.3], tracking: [-0.08, 0.1], leading: [0.65, 1.3],
+    brushSize: [0.005, 0.25], brushEdgeBlur: [0, 1], heatStrength: [0.2, 1.5],
+    heatSustain: [0, 3], trail: [0, 0.95], autoSpeed: [0.2, 2.5], wobble: [0, 1],
+    gooAmount: [0, 1], gooSpread: [0, 1], gooViscosity: [0, 1],
+    gooThreshold: [0.3, 0.62], gooDissolve: [0, 1], gooRise: [0.05, 4],
+    gooDwell: [0.2, 8], contourWidth: [0, 1], glowRadius: [0, 1],
+    densityBias: [0, 1], coreColorization: [0, 1], effectIntensity: [0.4, 1.8],
+    grain: [0, 0.6], grainSize: [1, 8], misregistration: [0, 0.006]
+  };
+  for (let seed = 1; seed <= 200; seed += 1) {
+    const state = randomizeLook(createState(), seededRandom(seed));
+    for (const [key, [minimum, maximum]] of Object.entries(bounds)) {
+      assert.ok(
+        state[key] >= minimum && state[key] <= maximum,
+        `${key}=${state[key]} outside [${minimum}, ${maximum}] at seed ${seed}`
+      );
+    }
+  }
+});
+
+test('randomised look leaves content and output settings alone', () => {
+  const original = createState();
+  const state = randomizeLook(createState(), seededRandom(7));
+  for (const key of ['text', 'align', 'uppercase', 'mode', 'aspect', 'exportHeight', 'duration']) {
+    assert.deepEqual(state[key], original[key], `${key} should not be randomised`);
+  }
+});
+
+test('randomised look keeps an uploaded font but swaps built-in ones', () => {
+  const uploaded = Object.assign(createState(), { customFont: 'UserUpload_1' });
+  randomizeLook(uploaded, seededRandom(3));
+  assert.equal(uploaded.customFont, 'UserUpload_1');
+
+  // Across many seeds a built-in family should actually change sometimes,
+  // otherwise the branch is dead and shuffling would never restyle the type.
+  const seen = new Set();
+  for (let seed = 1; seed <= 60; seed += 1) {
+    seen.add(randomizeLook(createState(), seededRandom(seed)).font);
+  }
+  assert.ok(seen.size > 1, 'built-in font never varied');
+});
+
+test('random palette returns four usable hex stops ending pale', () => {
+  for (let seed = 1; seed <= 120; seed += 1) {
+    const palette = randomPalette(seededRandom(seed));
+    assert.equal(palette.length, 4);
+    palette.forEach(stop => assert.match(stop, /^#[0-9a-f]{6}$/));
+    // The hot stop carries the highlight, so it must be lighter than the
+    // stop before it or the halo reads as paint instead of light.
+    const luma = hex => {
+      const [r, g, b] = hexToRgb(hex);
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    assert.ok(luma(palette[3]) > luma(palette[2]), `hot stop not lightest at seed ${seed}`);
+  }
 });
