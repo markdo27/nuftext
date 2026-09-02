@@ -63,9 +63,34 @@ npm test
 
 A current browser with WebGL and ES modules is required. WebM export depends on `MediaRecorder`; PNG and GIF remain available when the browser does not provide a WebM codec.
 
+## Interface
+
+The UI is built on the [ASTA design system](https://github.com/anton-io/asta) — a
+monospace framework where every element aligns to a character grid. Tokens,
+form components, the flat 2px-border language and the light/dark theming come
+from ASTA; the app shell, sliders, palette editor and canvas stage are additions
+for this tool.
+
+Two departures from upstream are noted in `styles.css`: ASTA centres documents at
+an 80ch measure, which a fixed control column beside a canvas cannot use, and its
+`* + *` document rhythm is replaced by explicit spacing on the same line-height
+scale. The chrome is kept strictly monochrome so the artwork is the only colour
+on screen — state is shown by inversion rather than an accent.
+
+Press the sun/moon button to switch theme. With no stored choice the system
+preference decides.
+
 ## Credits
 
-The visual direction is based on supplied print and motion references. The gooey silhouette adapts the blur-plus-alpha-threshold technique from Codrops' [Gooey Text Hover Effect](https://github.com/codrops/GooeyTextHoverEffect) (MIT). The browser GIF encoder is adapted from the earlier [Burnt-Noise](https://github.com/markdo27/Burnt-Noise) project.
+The visual direction is based on supplied print and motion references. The gooey
+silhouette adapts the blur-plus-alpha-threshold technique from Codrops'
+[Gooey Text Hover Effect](https://github.com/codrops/GooeyTextHoverEffect) (MIT).
+The browser GIF encoder is adapted from the earlier
+[Burnt-Noise](https://github.com/markdo27/Burnt-Noise) project.
+
+- [ASTA](https://github.com/anton-io/asta) by Antonio Roldao — MIT
+- [JetBrains Mono](https://github.com/JetBrains/JetBrainsMono) — SIL Open Font
+  License 1.1, bundled in `fonts/` with its `OFL.txt` and `AUTHORS.txt`
 
 ## Licence
 

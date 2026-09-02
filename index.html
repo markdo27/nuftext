@@ -10,12 +10,24 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Black&family=Bebas+Neue&family=Inter:wght@900&family=League+Spartan:wght@800;900&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
+  <script>
+    /* Applied before first paint so a stored theme never flashes the other
+       one. No stored choice means the system preference decides, which the
+       stylesheet handles on its own. */
+    try {
+      var t = localStorage.getItem('nuftext-theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    } catch (e) { /* private mode: fall through to the system preference */ }
+  </script>
 </head>
 <body>
   <aside class="panel" aria-label="Tool controls">
     <header class="brand">
       <div><h1>NUFTEXT</h1><p>Interactive thermal type</p></div>
-      <button class="quiet" id="resetAll" type="button">Reset</button>
+      <div class="brand-actions">
+        <button class="quiet" id="resetAll" type="button">Reset</button>
+        <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle colour theme"></button>
+      </div>
     </header>
 
     <nav class="mode-switch" aria-label="Interaction mode">
@@ -114,6 +126,19 @@ designed.</textarea></label>
     <div class="fatal" id="fatal" hidden>This browser cannot start WebGL. Try a current version of Chrome, Edge, Firefox or Safari.</div>
   </section>
 
+  <script>
+    document.querySelector('#themeToggle').addEventListener('click', function () {
+      var root = document.documentElement;
+      /* With no explicit choice yet, read what the system is actually
+         showing and flip away from that — otherwise the first click is a
+         coin toss that does nothing visible half the time. */
+      var current = root.dataset.theme
+        || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      var next = current === 'dark' ? 'light' : 'dark';
+      root.dataset.theme = next;
+      try { localStorage.setItem('nuftext-theme', next); } catch (e) { /* not persisted */ }
+    });
+  </script>
   <script type="module" src="src/app.js"></script>
 </body>
 </html>
