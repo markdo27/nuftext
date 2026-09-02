@@ -187,22 +187,41 @@ button, input, select, textarea, output {
   margin-bottom: calc(var(--line-height) / 3);
 }
 .switch-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1ch; }
-.switch-row.two { grid-template-columns: 1fr 1fr; margin-top: 1ch; }
+.switch-row.one { grid-template-columns: 1fr; margin-top: 1ch; }
 
+/* ─── Advanced switch ───────────────────────────────────────────────────
+   A full-width bar pinned under the scrolling controls. It is the only
+   thing down there, so it cannot be mistaken for one of the mode buttons,
+   and it states what it will do rather than relying on a lone number. */
+.panel-footer {
+  flex: none;
+  padding: var(--spacing-1) 2ch;
+  border-top: var(--border-thickness) solid var(--text-color);
+  background: var(--background-color-alt);
+}
+#advancedToggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1ch;
+  font-size: 0.76rem;
+}
+.toggle-sign {
+  font-size: 1rem;
+  font-weight: var(--font-weight-bold);
+  line-height: 1;
+}
 .toggle-count {
   display: inline-grid;
   place-content: center;
   min-width: 2.5ch;
-  margin-left: 0.5ch;
+  padding: 0 0.4ch;
   background: var(--text-color);
   color: var(--background-color);
-  font-size: 0.62rem;
+  font-size: 0.66rem;
   font-variant-numeric: tabular-nums;
 }
-#advancedToggle.active .toggle-count {
-  background: var(--accent-ink);
-  color: var(--accent);
-}
+.toggle-count[hidden] { display: none; }
 
 /* ─── Advanced controls ─────────────────────────────────────────────────
    Hidden by default and revealed as a block. Kept in the DOM rather than
@@ -636,6 +655,9 @@ input[type='range']:focus-visible::-webkit-slider-thumb { outline: var(--border-
     overflow: visible;
     border-top: var(--border-thickness) solid var(--text-color);
   }
+  /* `.panel { display: contents }` dissolves the column here, so the footer
+     needs its own order or it would land above the stage. */
+  .panel-footer { order: 4; }
   .canvas-shell { max-height: 100%; }
   #art { max-height: calc(70vh - var(--line-height) * 5); }
 }

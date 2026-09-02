@@ -100,29 +100,28 @@ function startApplication() {
 }
 
 /**
- * Controls kept out of the way until Advanced is switched on.
+ * The default panel is the shortest set that can still make something:
+ * what the type says, what it is set in, how big, how hard the heat is,
+ * how much it melts, and how it prints. Six sliders.
  *
- * The split is by whether a control changes what you are making or how it
- * is made. Size, brush, palette and goo amount are the first things anyone
- * reaches for; goo viscosity, density bias and misregistration only mean
- * something once you already know what the first set does. Hiding the
- * second group takes the panel from 27 sliders to 10, which is the
- * difference between a tool you can open and one you have to study.
+ * Everything else is refinement of a result you already have, so it waits
+ * behind Advanced. The test for each control was whether a first-time user
+ * could tell what it did by moving it — goo viscosity and density bias
+ * fail that, brush size does not.
  *
- * Nothing is disabled — every value stays live and exports exactly as set,
- * so a preset built with Advanced on still renders correctly with it off.
+ * Nothing is disabled. Hidden controls stay bound and live at whatever
+ * value they hold, so a look built with Advanced on renders identically
+ * with it off, and exports are unaffected either way.
  */
-const ADVANCED_KEYS = new Set([
-  // Text — fine typesetting, not needed to get a first result
-  'tracking', 'leading',
-  // Interaction — scan tuning and the goo envelope
-  'scanVoices', 'scanRhythm', 'brushEdgeBlur', 'heatSustain', 'trail',
-  'gooRise', 'gooDwell', 'wobble',
-  // Effect — the physics behind the look rather than the look itself
-  'gooSpread', 'gooViscosity', 'gooThreshold', 'densityBias', 'coreColorization',
-  // Texture — grain and plate detail
-  'grainSize', 'misregistration'
+const BASIC_KEYS = new Set([
+  'fontScale',      // how big
+  'brushSize',      // how much of the type the heat covers
+  'heatStrength',   // how hard it hits
+  'gooAmount',      // how far it melts
+  'gooDissolve',    // whether it melts away or only swells
+  'grain'           // how it prints
 ]);
+const isAdvancedSlider = key => !BASIC_KEYS.has(key);
 
 const SLIDER_GROUPS = {
   textSliders: [
@@ -173,9 +172,15 @@ const SLIDER_GROUPS = {
  */
 function bindAdvancedToggle() {
   const button = document.querySelector('#advancedToggle');
-  const count = document.querySelectorAll('[data-advanced]').length;
-  const label = button.querySelector('.toggle-count');
-  if (label) label.textContent = String(count);
+  const sign = button.querySelector('.toggle-sign');
+  const text = button.querySelector('.toggle-text');
+  const badge = button.querySelector('.toggle-count');
+
+  /* Count the sliders the switch actually reveals rather than every marked
+     node. Group wrappers carry the marker too, so counting elements would
+     report a number larger than anything the user can see appear. */
+  const revealed = document.querySelectorAll('[data-advanced] .slider, .slider[data-advanced]').length;
+  badge.textContent = String(revealed);
 
   /* The body flag deliberately uses a different attribute from the control
      markers. Reusing `data-advanced` for both made `<body>` itself match
@@ -185,6 +190,9 @@ function bindAdvancedToggle() {
     document.body.dataset.showAdvanced = on ? 'on' : 'off';
     button.classList.toggle('active', on);
     button.setAttribute('aria-pressed', String(on));
+    sign.textContent = on ? '−' : '+';
+    text.textContent = on ? 'Hide advanced controls' : 'Show advanced controls';
+    badge.hidden = on;
   };
 
   let stored = null;
@@ -206,7 +214,7 @@ function buildSliders(requestRender, refreshMask, interaction) {
       const [key, label, minimum, maximum, step, format, redrawMask] = definition;
       const wrapper = document.createElement('label');
       wrapper.className = 'slider';
-      if (ADVANCED_KEYS.has(key)) wrapper.dataset.advanced = '';
+      if (isAdvancedSlider(key)) wrapper.dataset.advanced = '';
       wrapper.innerHTML = `<span class="slider-head"><span>${label}</span><output class="slider-output"></output></span>`;
       const input = document.createElement('input');
       input.type = 'range';

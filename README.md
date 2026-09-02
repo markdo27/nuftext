@@ -9,12 +9,21 @@ An interactive thermal typography tool for the browser. Move across the type to 
 
 ## Basic and advanced controls
 
-The panel opens with ten controls — text, font, size, brush, palette, goo
-amount, grain, export. **Advanced** reveals the remaining nineteen: fine
-typesetting, the goo envelope and its physics, scan tuning and plate detail.
+The panel opens with six sliders — size, brush size, heat strength, goo
+amount, goo dissolve, print grain — alongside the text, font, palette,
+background and export controls. That is the shortest set that can still make
+something: what the type says, what it is set in, how big, how hard the heat
+is, how much it melts, and how it prints.
 
-Advanced is a view state only. Hidden controls stay live at whatever value
-they hold, so a look built with Advanced on renders identically with it off.
+**Show advanced controls**, the bar under the panel, reveals the other 21:
+fine typesetting, the goo envelope and its physics, scan tuning, individual
+palette stops and plate detail. The test for each control was whether a
+first-time user could tell what it did by moving it.
+
+Advanced is a view state only. Hidden controls stay bound and live at
+whatever value they hold, so a look built with Advanced on renders
+identically with it off, and exports are unaffected either way. The
+preference is remembered per browser.
 
 ## What it does
 

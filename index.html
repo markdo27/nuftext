@@ -37,15 +37,12 @@
         <button data-mode="auto" class="active" type="button">Auto</button>
         <button data-mode="words" type="button">Words</button>
       </div>
-      <div class="switch-row two">
+      <div class="switch-row one">
         <button id="pauseToggle" type="button">Pause</button>
-        <button id="advancedToggle" type="button" aria-pressed="false">
-          Advanced <span class="toggle-count">0</span>
-        </button>
       </div>
     </nav>
 
-    <main class="controls">
+    <main class="controls" id="controls">
       <details open>
         <summary><span>01</span> Text</summary>
         <div class="section-body">
@@ -60,14 +57,14 @@ designed.</textarea></label>
             <label class="upload"><span>Upload font</span><input id="fontFile" type="file" accept=".ttf,.otf,.woff,.woff2,font/*"></label>
           </div>
           <div class="file-status" id="fontStatus">Built-in font</div>
-          <div class="group">
+          <div id="textSliders"></div>
+          <div class="group" data-advanced>
             <h3 class="group-title">Setting</h3>
             <div class="field-grid three">
               <label class="field"><span>Align</span><select id="align"><option value="left">Left</option><option value="center" selected>Center</option><option value="right">Right</option></select></label>
               <label class="field"><span>Case</span><select id="uppercase"><option value="true" selected>Uppercase</option><option value="false">Keep case</option></select></label>
               <label class="field"><span>Ink</span><input id="textColor" type="color" value="#4a4a4a"></label>
             </div>
-            <div id="textSliders"></div>
           </div>
         </div>
       </details>
@@ -77,7 +74,7 @@ designed.</textarea></label>
         <div class="section-body">
           <p class="hint">Move across the artwork to melt it. Touch and pen work by dragging.</p>
 
-          <div class="group">
+          <div class="group" data-advanced>
             <h3 class="group-title">Word scan</h3>
             <div class="field-grid">
               <label class="field"><span>Scan unit</span><select id="scanUnit"><option value="character">Character</option><option value="word" selected>Word</option><option value="line">Line</option></select></label>
@@ -88,7 +85,7 @@ designed.</textarea></label>
           </div>
 
           <div class="group">
-            <h3 class="group-title">Heat brush</h3>
+            <h3 class="group-title" data-advanced>Heat brush</h3>
             <div id="interactionSliders"></div>
             <p class="hint" data-advanced>Sustain keeps feeding the goo after the pointer leaves. Rise and dwell set how slowly letters swell, then settle back to crisp type.</p>
             <button class="wide" id="clearHeat" type="button">Clear heat trail</button>
@@ -105,7 +102,7 @@ designed.</textarea></label>
             <button data-palette="cyanPink" type="button">Cyan Pink</button>
           </div>
           <div class="palette-bar" id="paletteBar"></div>
-          <div class="color-grid" id="paletteColors"></div>
+          <div class="color-grid" id="paletteColors" data-advanced></div>
           <div id="effectSliders"></div>
         </div>
       </details>
@@ -135,6 +132,18 @@ designed.</textarea></label>
         </div>
       </details>
     </main>
+
+    <!-- Sits below the scrolling controls, away from the mode switches it
+         used to sit beside. Those pick a mode; this one changes how much of
+         the panel is shown, and putting the two kinds of control in one row
+         read as a single five-way choice. -->
+    <footer class="panel-footer">
+      <button id="advancedToggle" type="button" aria-pressed="false" aria-controls="controls">
+        <span class="toggle-sign" aria-hidden="true">+</span>
+        <span class="toggle-text">Show advanced controls</span>
+        <span class="toggle-count">0</span>
+      </button>
+    </footer>
   </aside>
 
   <section class="stage" id="stage">
