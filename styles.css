@@ -670,3 +670,27 @@ input[type='range']:focus-visible::-webkit-slider-thumb { outline: var(--border-
   .color-grid { grid-template-columns: repeat(2, 1fr); }
   .brand { position: sticky; top: 0; z-index: 3; }
 }
+
+/* ─── About and licence ─────────────────────────────────────────────── */
+/* Term and definition pairs, set with the same label treatment the form
+   fields use so the section reads as part of the panel, not a bolt-on. */
+.about { margin: 0; }
+.about dt {
+  color: var(--text-color-alt);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1ch;
+  font-weight: var(--font-weight-medium);
+  margin-bottom: calc(var(--line-height) / 4);
+}
+.about dd {
+  margin: 0 0 var(--spacing-half);
+  font-size: 0.8rem;
+}
+.about dd:last-child { margin-bottom: 0; }
+.about a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.about a:hover, .about a:focus-visible { color: var(--accent); }
